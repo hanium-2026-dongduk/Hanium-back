@@ -11,4 +11,13 @@ router.post('/email/send', authController.sendVerificationValidation, authContro
 // POST /api/auth/email/verify - 인증번호 검증
 router.post('/email/verify', authController.verifyEmailValidation, authController.verifyEmail);
 
+// POST /api/auth/login - 로그인
+router.post('/login', authController.loginValidation, authController.login);
+
+// POST /api/auth/logout - 로그아웃
+router.post('/logout', authController.logout);
+
+// POST /api/auth/refresh - 토큰 갱신
+router.post('/refresh', authController.refreshValidation, authController.refresh);
+
 module.exports = router;

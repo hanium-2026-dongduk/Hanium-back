@@ -1,9 +1,11 @@
 const bcrypt = require('bcrypt');
-const { User, EmailVerification } = require('../models');
+const { User, EmailVerification, RefreshToken } = require('../models');
 const { sendVerificationEmail } = require('../utils/mailer');
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 
 const SALT_ROUNDS = 12;
 const VERIFICATION_EXPIRY_MINUTES = 5;
+const REFRESH_TOKEN_DAYS = 7;
 
 /**
  * 6자리 인증번호 생성
@@ -109,8 +111,120 @@ const verifyEmail = async (email, code) => {
   return { message: '이메일 인증이 완료되었습니다.' };
 };
 
+/**
+ * 로그인
+ * @param {string} email
+ * @param {string} password
+ * @returns {object} { accessToken, refreshToken, user }
+ */
+const login = async (email, password) => {
+  // 사용자 조회
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    const error = new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // 계정 상태 확인
+  if (user.status !== 'active') {
+    const error = new Error('비활성화된 계정입니다.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // 비밀번호 검증
+  const isMatch = await bcrypt.compare(password, user.password_hash);
+  if (!isMatch) {
+    const error = new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // 토큰 생성
+  const payload = { user_id: user.user_id, email: user.email, role: user.role };
+  const accessToken = generateAccessToken(payload);
+  const refreshToken = generateRefreshToken({ user_id: user.user_id });
+
+  // Refresh Token DB 저장
+  const expires_at = new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+  await RefreshToken.create({
+    user_id: user.user_id,
+    token: refreshToken,
+    expires_at,
+  });
+
+  // 사용자 정보 반환 (password_hash 제외)
+  const { password_hash: _, ...userData } = user.toJSON();
+
+  return { accessToken, refreshToken, user: userData };
+};
+
+/**
+ * 로그아웃
+ * @param {string} refreshToken
+ */
+const logout = async (refreshToken) => {
+  const deleted = await RefreshToken.destroy({ where: { token: refreshToken } });
+  if (!deleted) {
+    const error = new Error('유효하지 않은 토큰입니다.');
+    error.statusCode = 400;
+    throw error;
+  }
+  return { message: '로그아웃되었습니다.' };
+};
+
+/**
+ * 토큰 갱신
+ * @param {string} token - refresh token
+ * @returns {object} { accessToken }
+ */
+const refresh = async (token) => {
+  // JWT 검증
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(token);
+  } catch (err) {
+    const error = new Error('유효하지 않은 리프레시 토큰입니다.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // DB에 존재하는지 확인
+  const storedToken = await RefreshToken.findOne({ where: { token } });
+  if (!storedToken) {
+    const error = new Error('리프레시 토큰이 만료되었거나 존재하지 않습니다.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // 만료 확인
+  if (new Date() > new Date(storedToken.expires_at)) {
+    await storedToken.destroy();
+    const error = new Error('리프레시 토큰이 만료되었습니다. 다시 로그인해주세요.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // 사용자 조회 후 새 access token 발급
+  const user = await User.findByPk(decoded.user_id);
+  if (!user) {
+    const error = new Error('사용자를 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const payload = { user_id: user.user_id, email: user.email, role: user.role };
+  const accessToken = generateAccessToken(payload);
+
+  return { accessToken };
+};
+
 module.exports = {
   signup,
   sendVerification,
   verifyEmail,
+  login,
+  logout,
+  refresh,
 };

@@ -16,4 +16,10 @@ module.exports = {
     password: process.env.MAIL_PASSWORD,
     from: process.env.MAIL_FROM || process.env.MAIL_USER,
   },
+  jwt: {
+    accessSecret: process.env.JWT_ACCESS_SECRET || 'access-secret-dev',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-dev',
+    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  },
 };
