@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const { User, EmailVerification, RefreshToken } = require('../models');
-const { sendVerificationEmail } = require('../utils/mailer');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 
 const SALT_ROUNDS = 12;
@@ -220,6 +220,107 @@ const refresh = async (token) => {
   return { accessToken };
 };
 
+/**
+ * 이메일 찾기 (자녀 이름으로 계정 이메일 힌트 제공)
+ * @param {string} child_name - 가입 시 등록한 자녀 이름
+ * @returns {object} { email } - 마스킹된 이메일
+ */
+const findEmail = async (child_name) => {
+  const { ChildProfile } = require('../models');
+
+  const profile = await ChildProfile.findOne({ where: { child_name } });
+  if (!profile) {
+    const error = new Error('해당 정보로 등록된 계정을 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const user = await User.findByPk(profile.user_id);
+  if (!user) {
+    const error = new Error('해당 정보로 등록된 계정을 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // 이메일 마스킹 (예: us***@example.com)
+  const [local, domain] = user.email.split('@');
+  const masked = local.slice(0, 2) + '***@' + domain;
+
+  return { email: masked };
+};
+
+/**
+ * 비밀번호 재설정 요청 (인증번호 이메일 발송)
+ * @param {string} email
+ */
+const passwordResetRequest = async (email) => {
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    const error = new Error('등록되지 않은 이메일입니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // 인증번호 생성
+  const code = generateCode();
+  const expires_at = new Date(Date.now() + VERIFICATION_EXPIRY_MINUTES * 60 * 1000);
+
+  // 기존 미인증 레코드 삭제 후 새로 생성
+  const { EmailVerification } = require('../models');
+  await EmailVerification.destroy({ where: { email, is_verified: false } });
+  await EmailVerification.create({ email, code, expires_at });
+
+  // 비밀번호 재설정 이메일 발송
+  await sendPasswordResetEmail(email, code);
+
+  return { message: '비밀번호 재설정 인증번호가 발송되었습니다.' };
+};
+
+/**
+ * 비밀번호 재설정 (인증번호 확인 후 새 비밀번호 설정)
+ * @param {string} email
+ * @param {string} code - 6자리 인증번호
+ * @param {string} newPassword - 새 비밀번호
+ */
+const passwordReset = async (email, code, newPassword) => {
+  const { EmailVerification } = require('../models');
+
+  // 인증번호 검증
+  const verification = await EmailVerification.findOne({
+    where: { email, code, is_verified: false },
+    order: [['created_at', 'DESC']],
+  });
+
+  if (!verification) {
+    const error = new Error('인증번호가 일치하지 않습니다.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (new Date() > new Date(verification.expires_at)) {
+    const error = new Error('인증번호가 만료되었습니다. 다시 요청해주세요.');
+    error.statusCode = 410;
+    throw error;
+  }
+
+  // 인증 완료 처리
+  verification.is_verified = true;
+  await verification.save();
+
+  // 비밀번호 변경
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    const error = new Error('사용자를 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  user.password_hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await user.save();
+
+  return { message: '비밀번호가 재설정되었습니다.' };
+};
+
 module.exports = {
   signup,
   sendVerification,
@@ -227,4 +328,7 @@ module.exports = {
   login,
   logout,
   refresh,
+  findEmail,
+  passwordResetRequest,
+  passwordReset,
 };

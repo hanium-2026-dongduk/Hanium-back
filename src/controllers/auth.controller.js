@@ -200,6 +200,109 @@ const refresh = async (req, res, next) => {
   }
 };
 
+/**
+ * 이메일 찾기 유효성 검사
+ */
+const findEmailValidation = [
+  body('child_name')
+    .trim()
+    .notEmpty()
+    .withMessage('자녀 이름을 입력해주세요.'),
+];
+
+/**
+ * POST /api/auth/find-email
+ * 이메일 찾기
+ */
+const findEmail = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
+    }
+
+    const { child_name } = req.body;
+    const result = await authService.findEmail(child_name);
+
+    return response.success(res, 200, '계정을 찾았습니다.', result);
+  } catch (err) {
+    if (err.statusCode) return response.error(res, err.statusCode, err.message);
+    next(err);
+  }
+};
+
+/**
+ * 비밀번호 재설정 요청 유효성 검사
+ */
+const passwordResetRequestValidation = [
+  body('email')
+    .isEmail()
+    .withMessage('유효한 이메일 형식이 아닙니다.')
+    .normalizeEmail(),
+];
+
+/**
+ * POST /api/auth/password/reset-request
+ * 비밀번호 재설정 인증번호 발송
+ */
+const passwordResetRequest = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
+    }
+
+    const { email } = req.body;
+    const result = await authService.passwordResetRequest(email);
+
+    return response.success(res, 200, result.message);
+  } catch (err) {
+    if (err.statusCode) return response.error(res, err.statusCode, err.message);
+    next(err);
+  }
+};
+
+/**
+ * 비밀번호 재설정 유효성 검사
+ */
+const passwordResetValidation = [
+  body('email')
+    .isEmail()
+    .withMessage('유효한 이메일 형식이 아닙니다.')
+    .normalizeEmail(),
+  body('code')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('인증번호는 6자리입니다.')
+    .isNumeric()
+    .withMessage('인증번호는 숫자만 입력 가능합니다.'),
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('비밀번호는 최소 8자 이상이어야 합니다.')
+    .matches(/^(?=.*[a-zA-Z])(?=.*\d)/)
+    .withMessage('비밀번호는 영문과 숫자를 포함해야 합니다.'),
+];
+
+/**
+ * PUT /api/auth/password/reset
+ * 비밀번호 재설정
+ */
+const passwordReset = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
+    }
+
+    const { email, code, newPassword } = req.body;
+    const result = await authService.passwordReset(email, code, newPassword);
+
+    return response.success(res, 200, result.message);
+  } catch (err) {
+    if (err.statusCode) return response.error(res, err.statusCode, err.message);
+    next(err);
+  }
+};
+
 module.exports = {
   signupValidation,
   signup,
@@ -212,4 +315,10 @@ module.exports = {
   logout,
   refreshValidation,
   refresh,
+  findEmailValidation,
+  findEmail,
+  passwordResetRequestValidation,
+  passwordResetRequest,
+  passwordResetValidation,
+  passwordReset,
 };
