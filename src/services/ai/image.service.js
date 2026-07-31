@@ -1,47 +1,61 @@
-const axios = require('axios');
+const { GoogleGenAI } = require('@google/genai');
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /**
- * Pollinations.ai를 이용한 무료 이미지 생성 함수
- * @param {string} prompt - 장면 묘사 프롬프트
- * @returns {Promise<string>} - Base64 Data URL
+ * 프롬프트를 받아 Gemini 이미지 모델을 통해 삽화 이미지(Buffer) 생성
+ * 503(과부하) 발생 시 지수 백오프로 재시도
+ * @param {string} imagePrompt
+ * @param {number} maxRetries
+ * @returns {Promise<Buffer>}
  */
-async function generateImage(prompt) {
-  try {
-    // 특수문자 안전하게 인코딩 (영어 프롬프트)
-    const cleanPrompt = prompt.replace(/[^a-zA-Z0-9\s]/g, '');
-    const enhancedPrompt = encodeURIComponent(
-      `children storybook illustration, digital art, vibrant colors, ${cleanPrompt}`
-    );
+async function generateStoryImage(imagePrompt, maxRetries = 4) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: `${imagePrompt}, children's book illustration style, bright soft colors, cute, vector art`,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
+      });
 
-    // Pollinations 기본 model 사용 (안정성 강화)
-    const imageUrl = `https://image.pollinations.ai/prompt/${enhancedPrompt}?width=512&height=512&nologo=true`;
+      const parts = response.candidates[0].content.parts;
+      const imagePart = parts.find((p) => p.inlineData);
 
-    const response = await axios.get(imageUrl, {
-      responseType: 'arraybuffer',
-      headers: {
-        'User-Agent': 'Mozilla/5.0', // 서버 블락 방지 헤더 추가
-      },
-      timeout: 15000, // 15초 타임아웃
-    });
+      if (!imagePart) {
+        throw new Error('응답에 이미지 데이터가 없습니다');
+      }
 
-    // 받은 응답 데이터 타입 검증
-    const buffer = Buffer.from(response.data);
-    
-    // 만약 이미지 대신 에러 텍스트가 왔는지 확인
-    const headerString = buffer.toString('utf8', 0, 100);
-    if (headerString.includes('<!DOCTYPE html>') || headerString.includes('{"error"')) {
-      console.error('API 응답 내용:', headerString);
-      throw new Error('API에서 이미지 대신 에러 페이지를 반환했습니다.');
+      return Buffer.from(imagePart.inlineData.data, 'base64');
+    } catch (error) {
+      const isOverloaded = error?.message?.includes('UNAVAILABLE') || error?.status === 503;
+      const isLastAttempt = attempt === maxRetries;
+
+      if (isOverloaded && !isLastAttempt) {
+        const delay = 1000 * 2 ** attempt; // 1s, 2s, 4s, 8s...
+        console.warn(`[Gemini Image API] 과부하, ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`);
+        await sleep(delay);
+        continue;
+      }
+
+      console.error('[Gemini Image API Error]:', error);
+      throw new Error('이미지 생성 실패');
     }
-
-    const base64Image = buffer.toString('base64');
-    return `data:image/jpeg;base64,${base64Image}`;
-  } catch (error) {
-    console.error('Pollinations API Error:', error.message);
-    throw new Error('AI 이미지 생성 실패');
   }
 }
 
-module.exports = {
-  generateImage,
-};
+module.exports = { generateStoryImage };

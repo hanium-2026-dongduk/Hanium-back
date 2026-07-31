@@ -1,38 +1,68 @@
-const googleTTS = require('google-tts-api');
-const axios = require('axios');
+const { GoogleGenAI } = require('@google/genai');
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 /**
- * google-tts-api를 활용한 완전 무료 TTS 음성 생성 함수
- * @param {string} text - 음성으로 변환할 동화 텍스트
- * @param {Object} options - 옵션 (lang: 언어, speed: 재생 속도)
- * @returns {Promise<string>} - audio/mp3 Base64 Data URL
+ * 텍스트를 받아 Gemini TTS로 음성(PCM) 생성 후 Buffer 반환
+ * @param {string} text - 낭독할 텍스트
+ * @returns {Promise<Buffer>} 오디오 버퍼 (PCM raw, WAV 변환 필요)
  */
-async function generateSpeech(text, options = {}) {
+
+function pcmToWav(pcmBuffer, sampleRate = 24000, channels = 1, bitDepth = 16) {
+  const byteRate = sampleRate * channels * (bitDepth / 8);
+  const blockAlign = channels * (bitDepth / 8);
+  const dataSize = pcmBuffer.length;
+
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitDepth, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+async function generateAudio(text) {
   try {
-    const { lang = 'ko', speed = 1.0 } = options;
-
-    // 1. 무료 Google Translate TTS MP3 URL 생성
-    const audioUrl = googleTTS.getAudioUrl(text, {
-      lang: lang,
-      slow: speed < 1.0,
-      host: 'https://translate.google.com',
-      timeout: 10000,
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-tts-preview', // 또는 gemini-2.5-flash-preview-tts
+      contents: [{ parts: [{ text: `Read aloud in a warm, gentle storytelling voice: ${text}` }] }],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' }, // 원하는 보이스로 교체 가능
+          },
+        },
+      },
     });
 
-    // 2. MP3 오디오 데이터 다운로드
-    const response = await axios.get(audioUrl, {
-      responseType: 'arraybuffer',
-    });
+    const audioPart = response.candidates[0].content.parts.find((p) => p.inlineData);
 
-    // 3. Base64 Data URL 형태로 변환
-    const base64Audio = Buffer.from(response.data).toString('base64');
-    return `data:audio/mp3;base64,${base64Audio}`;
+    if (!audioPart) {
+      throw new Error('응답에 오디오 데이터가 없습니다');
+    }
+
+    const pcmBuffer = Buffer.from(audioPart.inlineData.data, 'base64');
+    return pcmToWav(pcmBuffer); // 24000Hz, mono, 16bit이 Gemini TTS 기본값
+
+    // PCM raw 데이터 → 기존에 만들어둔 PCM-to-WAV 변환 함수에 넘기면 됩니다
+    return Buffer.from(audioPart.inlineData.data, 'base64');
   } catch (error) {
-    console.error('TTS API Error:', error.message);
-    throw new Error('무료 TTS 음성 생성 실패');
+    console.error('[Gemini TTS API Error]:', error);
+    throw new Error('TTS 음성 생성 실패');
   }
 }
 
-module.exports = {
-  generateSpeech,
-};
+
+
+module.exports = { generateAudio };

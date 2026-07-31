@@ -1,30 +1,34 @@
 const { GoogleGenAI } = require('@google/genai');
-require('dotenv').config();
 
-// GoogleGenAI 인스턴스 생성 (환경변수의 GEMINI_API_KEY를 자동 감지)
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+const apiKey = process.env.GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.error('❌ [Gemini Error] GEMINI_API_KEY가 .env 파일에 설정되지 않았습니다.');
+}
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
 
 /**
- * 프롬프트를 받아 Gemini 모델로부터 텍스트 응답을 가져오는 함수
- * @param {string} prompt - AI에게 전달할 프롬프트
- * @returns {Promise<string>} - AI 응답 텍스트
+ * 프롬프트를 받아 Gemini를 통해 스토리 텍스트 생성
+ * @param {string} prompt - 스토리 주제 또는 지시사항
+ * @returns {Promise<string>} 생성된 텍스트
  */
-async function generateText(prompt) {
+async function generateStoryText(prompt) {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: prompt,
+      config: {
+        temperature: 0.7,
+      },
     });
 
     return response.text;
   } catch (error) {
-    console.error('Gemini API Error:', error);
-    throw new Error('AI 텍스트 생성 실패');
+    console.error('[Gemini API Error]:', error);
+    throw new Error('스토리 텍스트 생성 실패');
   }
 }
 
-module.exports = {
-  generateText,
-};
+module.exports = { generateStoryText };
