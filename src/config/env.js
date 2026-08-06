@@ -1,5 +1,14 @@
 require('dotenv').config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+// 운영 환경에서는 개발용 기본 JWT secret을 사용하지 못하도록 기동 시점에 차단한다.
+if (isProduction && (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET)) {
+  throw new Error(
+    'JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be set via environment variables in production.'
+  );
+}
+
 module.exports = {
   port: process.env.PORT || 3000,
   db: {

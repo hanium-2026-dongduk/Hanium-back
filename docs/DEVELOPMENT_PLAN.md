@@ -137,8 +137,10 @@ POST   /api/auth/logout
 POST   /api/auth/refresh
 
 # ID/PW 찾기 (AU03)
-POST   /api/auth/find-email          ← NEW: 이름+가입정보로 이메일 찾기
-POST   /api/auth/password/reset-request  ← NEW: 비밀번호 재설정 이메일 발송
+# (재설계) 요구사항 정의서 v3.0의 AU03에는 "이름으로 이메일 찾기"가 정의되어 있지 않고,
+# 로그인 ID가 곧 이메일이라 별도 ID 찾기 기능 자체가 필요하지 않다. 이메일 기반
+# 비밀번호 재설정 하나로 통합했다. 자세한 내용: docs/API_SPEC_AUTH.md 7절
+POST   /api/auth/password/reset-request  ← 비밀번호 재설정 이메일 발송
 PUT    /api/auth/password/reset      ← 비밀번호 재설정 완료
 DELETE /api/auth/account
 

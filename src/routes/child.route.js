@@ -13,15 +13,20 @@ router.post('/', childController.createValidation, childController.create);
 router.get('/', childController.getAll);
 
 // GET /api/children/:id - 자녀 프로필 단건 조회
-router.get('/:id', childController.getById);
+router.get('/:id', childController.idParamValidation, childController.getById);
 
 // PUT /api/children/:id - 자녀 프로필 수정
-router.put('/:id', childController.updateValidation, childController.update);
+router.put(
+  '/:id',
+  childController.idParamValidation,
+  childController.updateValidation,
+  childController.update
+);
 
 // DELETE /api/children/:id - 자녀 프로필 삭제
-router.delete('/:id', childController.remove);
+router.delete('/:id', childController.idParamValidation, childController.remove);
 
 // PATCH /api/children/:id/activate - 활성 프로필 전환
-router.patch('/:id/activate', childController.activate);
+router.patch('/:id/activate', childController.idParamValidation, childController.activate);
 
 module.exports = router;

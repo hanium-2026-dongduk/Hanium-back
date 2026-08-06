@@ -20,9 +20,6 @@ router.post('/logout', authController.logout);
 // POST /api/auth/refresh - 토큰 갱신
 router.post('/refresh', authController.refreshValidation, authController.refresh);
 
-// POST /api/auth/find-email - 이메일 찾기 (AU03)
-router.post('/find-email', authController.findEmailValidation, authController.findEmail);
-
 // POST /api/auth/password/reset-request - 비밀번호 재설정 인증번호 발송 (AU03)
 router.post('/password/reset-request', authController.passwordResetRequestValidation, authController.passwordResetRequest);
 

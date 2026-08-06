@@ -3,6 +3,7 @@ const healthRouter = require('./health.route');
 const authRouter = require('./auth.route');
 const childRouter = require('./child.route');
 const guardianRouter = require('./guardian.route');
+const usageRouter = require('./usage.route');
 
 const router = express.Router();
 
@@ -10,5 +11,6 @@ router.use('/health', healthRouter);
 router.use('/auth', authRouter);
 router.use('/children', childRouter);
 router.use('/guardian', guardianRouter);
+router.use('/usage', usageRouter);
 
 module.exports = router;

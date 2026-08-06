@@ -17,6 +17,19 @@ const EmailVerification = sequelize.define(
       type: DataTypes.STRING(6),
       allowNull: false,
     },
+    purpose: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'signup',
+      validate: {
+        isIn: [['signup', 'password_reset']],
+      },
+    },
+    attempts: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
     expires_at: {
       type: DataTypes.DATE,
       allowNull: false,
