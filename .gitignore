@@ -157,6 +157,12 @@ dist
 # Built Visual Studio Code Extensions
 *.vsix
 
+#생성되는 이미지, 오디오
+public/images/*
+public/audio/*
+!public/images/.gitkeep
+!public/audio/.gitkeep
+
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
 .history

@@ -1,22 +1,24 @@
+const fs = require('fs');
+const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
+const { retryWithBackoff } = require('../../utils/retry');
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+const IMAGE_DIR = path.join(__dirname, '../../../public/images');
+if (!fs.existsSync(IMAGE_DIR)) {
+  fs.mkdirSync(IMAGE_DIR, { recursive: true });
 }
 
 /**
- * 프롬프트를 받아 Gemini 이미지 모델을 통해 삽화 이미지(Buffer) 생성
- * 503(과부하) 발생 시 지수 백오프로 재시도
+ * 프롬프트를 받아 Gemini 이미지 모델을 통해 삽화 이미지를 생성하고 파일로 저장
  * @param {string} imagePrompt
- * @param {number} maxRetries
- * @returns {Promise<Buffer>}
+ * @returns {Promise<string>} 이미지 파일 경로 (예: /images/xxx.png)
  */
-async function generateStoryImage(imagePrompt, maxRetries = 4) {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
+async function generateStoryImage(imagePrompt) {
+  try {
+    const response = await retryWithBackoff(() =>
+      ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: [
           {
@@ -31,30 +33,27 @@ async function generateStoryImage(imagePrompt, maxRetries = 4) {
         config: {
           responseModalities: ['TEXT', 'IMAGE'],
         },
-      });
+      })
+    );
 
-      const parts = response.candidates[0].content.parts;
-      const imagePart = parts.find((p) => p.inlineData);
+    const parts = response.candidates[0].content.parts;
+    const imagePart = parts.find((p) => p.inlineData);
 
-      if (!imagePart) {
-        throw new Error('응답에 이미지 데이터가 없습니다');
-      }
-
-      return Buffer.from(imagePart.inlineData.data, 'base64');
-    } catch (error) {
-      const isOverloaded = error?.message?.includes('UNAVAILABLE') || error?.status === 503;
-      const isLastAttempt = attempt === maxRetries;
-
-      if (isOverloaded && !isLastAttempt) {
-        const delay = 1000 * 2 ** attempt; // 1s, 2s, 4s, 8s...
-        console.warn(`[Gemini Image API] 과부하, ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`);
-        await sleep(delay);
-        continue;
-      }
-
-      console.error('[Gemini Image API Error]:', error);
-      throw new Error('이미지 생성 실패');
+    if (!imagePart) {
+      throw new Error('응답에 이미지 데이터가 없습니다');
     }
+
+    const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
+
+    const ext = imagePart.inlineData.mimeType?.includes('jpeg') ? 'jpg' : 'png';
+    const fileName = `image_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const filePath = path.join(IMAGE_DIR, fileName);
+    fs.writeFileSync(filePath, imageBuffer);
+
+    return `/images/${fileName}`;
+  } catch (error) {
+    console.error('[Gemini Image API Error]:', error);
+    throw new Error('이미지 생성 실패');
   }
 }
 
