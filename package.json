@@ -12,6 +12,7 @@
     "migrate": "node db/migrations/run.js",
     "smoke": "node tests/smoke/auth.smoke.js",
     "smoke:week2": "node tests/smoke/week2.smoke.js",
+    "smoke:week3": "node tests/smoke/week3.smoke.js",
     "smoke:migration": "node tests/smoke/migration.smoke.js"
   },
   "repository": {
