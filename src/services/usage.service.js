@@ -1,47 +1,13 @@
-const { GuardianSetting, UsageDailySummary, sequelize } = require('../models');
+const { GuardianSetting, UsageDailySummary } = require('../models');
 const childService = require('./child.service');
+const { getSeoulDateString } = require('../utils/dateUtils');
+const { runWithDeadlockRetry } = require('../utils/dbRetry');
 
 // heartbeat 하나가 크레딧할 수 있는 최대 경과 시간(초). 프론트와의 계약상 heartbeat는
 // 30~60초 간격으로 호출되므로, 이보다 넉넉한 상한을 둬서 앱이 백그라운드로 갔다가 한참
 // 뒤에 heartbeat를 보내거나(네트워크 재시도, 슬립 등) 의도적으로 느리게 보내는 경우에도
 // 실제 경과 시간보다 크게 부풀려 적립되지 않게 한다.
 const HEARTBEAT_CAP_SECONDS = 90;
-
-/**
- * Asia/Seoul 캘린더 기준 날짜 문자열(YYYY-MM-DD)을 반환한다.
- * 서버 프로세스가 어느 타임존에서 구동되든 항상 KST 자정을 하루의 경계로 삼는다.
- */
-const getSeoulDateString = (date = new Date()) => {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(date);
-};
-
-const MAX_DEADLOCK_RETRIES = 3;
-
-const isDeadlockError = (err) => {
-  return err?.original?.code === 'ER_LOCK_DEADLOCK' || err?.parent?.code === 'ER_LOCK_DEADLOCK';
-};
-
-/**
- * findOrCreateSummary의 "없으면 INSERT, 유니크 충돌 나면 재조회" 패턴은, 같은 자녀의
- * 그날 첫 heartbeat가 여러 개 동시에 도착하면 InnoDB가 갭 락 경합으로 데드락을 낼 수 있다
- * (여러 트랜잭션이 동시에 "없음"을 보고 INSERT를 시도하는 전형적인 상황). 데드락은
- * MySQL이 한쪽 트랜잭션을 강제로 롤백시켜 해결하는 정상적인 동시성 제어 메커니즘이므로,
- * 그 트랜잭션만 짧게 재시도하면 안전하게 완료된다.
- */
-const runWithDeadlockRetry = async (fn) => {
-  let lastErr;
-  for (let attempt = 1; attempt <= MAX_DEADLOCK_RETRIES; attempt += 1) {
-    try {
-      return await sequelize.transaction(fn);
-    } catch (err) {
-      lastErr = err;
-      if (!isDeadlockError(err) || attempt === MAX_DEADLOCK_RETRIES) {
-        throw err;
-      }
-    }
-  }
-  throw lastErr;
-};
 
 const getDailyLimitSeconds = async (userId, transaction) => {
   const setting = await GuardianSetting.findOne({ where: { user_id: userId }, transaction });
@@ -171,6 +137,8 @@ const getTodayUsage = async (userId, childProfileId) => {
 module.exports = {
   recordHeartbeat,
   getTodayUsage,
+  // utils/dateUtils로 옮겼지만, 이미 이 경로로 가져다 쓰는 곳(middlewares/usageLimit.js)이
+  // 있어 재export로 유지한다. 신규 코드는 utils/dateUtils에서 직접 가져올 것.
   getSeoulDateString,
   HEARTBEAT_CAP_SECONDS,
 };
