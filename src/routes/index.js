@@ -8,6 +8,7 @@ const attendanceRouter = require('./attendance.route');
 const missionRouter = require('./mission.route');
 const rewardRouter = require('./reward.route');
 const badgeRouter = require('./badge.route');
+const stickerRouter = require('./sticker.route');
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.use('/attendance', attendanceRouter);
 router.use('/missions', missionRouter);
 router.use('/rewards', rewardRouter);
 router.use('/badges', badgeRouter);
+router.use('/stickers', stickerRouter);
 
 module.exports = router;
