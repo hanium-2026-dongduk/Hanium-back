@@ -9,6 +9,7 @@ const AttendanceLog = require('./attendanceLog.model');
 const DailyMission = require('./dailyMission.model');
 const RewardWallet = require('./rewardWallet.model');
 const RewardTransaction = require('./rewardTransaction.model');
+const ChildBadge = require('./childBadge.model');
 
 // 관계 설정
 User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -42,6 +43,10 @@ RewardWallet.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 ChildProfile.hasMany(RewardTransaction, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
 RewardTransaction.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 
+// Week4 — 배지 획득 기록. 배지 "종류"는 DB가 아니라 src/config/badgeCatalog.js에 있다.
+ChildProfile.hasMany(ChildBadge, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+ChildBadge.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
 const db = {
   sequelize,
   User,
@@ -54,6 +59,7 @@ const db = {
   DailyMission,
   RewardWallet,
   RewardTransaction,
+  ChildBadge,
 };
 
 module.exports = db;
