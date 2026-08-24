@@ -8,7 +8,11 @@
     "dev": "nodemon src/server.js",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "migrate": "node db/migrations/run.js",
+    "smoke": "node tests/smoke/auth.smoke.js",
+    "smoke:week2": "node tests/smoke/week2.smoke.js",
+    "smoke:migration": "node tests/smoke/migration.smoke.js"
   },
   "repository": {
     "type": "git",
@@ -26,20 +30,28 @@
     "@google/genai": "^2.13.0",
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.18.1",
+    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "google-tts-api": "^2.0.2",
+
+    "express-validator": "^7.3.2",
+    "jsonwebtoken": "^9.0.3",
+
     "morgan": "^1.11.0",
     "mysql2": "^3.23.0",
+    "nodemailer": "^9.0.3",
     "sequelize": "^6.37.8"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
+    "jest": "^30.4.2",
     "nodemon": "^3.1.14",
-    "prettier": "^3.9.5"
+    "prettier": "^3.9.5",
+    "supertest": "^7.2.2"
   }
 }
