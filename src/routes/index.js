@@ -7,6 +7,9 @@ const authRouter = require('./auth.route');
 const childRouter = require('./child.route');
 const guardianRouter = require('./guardian.route');
 const usageRouter = require('./usage.route');
+const storyFavoriteRouter = require('./storyFavorite.route');
+const vocabularyRouter = require('./vocabulary.route');
+const quizRouter = require('./quiz.route');
 
 
 const router = express.Router();
@@ -19,5 +22,8 @@ router.use('/auth', authRouter);
 router.use('/children', childRouter);
 router.use('/guardian', guardianRouter);
 router.use('/usage', usageRouter);
+router.use('/favorites', storyFavoriteRouter);
+router.use('/vocabulary', vocabularyRouter);
+router.use('/quizzes', quizRouter);
 
 module.exports = router;

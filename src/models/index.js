@@ -10,6 +10,11 @@ const RefreshToken = require('./refreshToken.model');
 const ChildProfile = require('./childProfile.model');
 const GuardianSetting = require('./guardianSetting.model');
 const UsageDailySummary = require('./usageDailySummary.model');
+const StoryFavorite = require('./storyFavorite.model');
+const VocabularyEntry = require('./vocabularyEntry.model');
+const QuizSet = require('./quizSet.model');
+const QuizQuestion = require('./quizQuestion.model');
+const QuizOption = require('./quizOption.model');
 
 // 동화 생성 관련 관계
 Character.hasMany(Story, { foreignKey: 'character_id', onDelete: 'RESTRICT' });
@@ -24,10 +29,9 @@ StoryPageIllustration.belongsTo(StoryPage, { foreignKey: 'story_page_id' });
 StoryPage.hasOne(StoryPageTts, { foreignKey: 'story_page_id', onDelete: 'CASCADE' });
 StoryPageTts.belongsTo(StoryPage, { foreignKey: 'story_page_id' });
 
-// ⚠️ TODO: ChildProfile은 이제 병합됨 - stories 테이블에 child_profile_id 컬럼이
-// 마이그레이션으로 실제로 추가돼 있는지 확인 후 아래 두 줄 활성화
-// ChildProfile.hasMany(Story, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
-// Story.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+// ChildProfile - Story 관계 (0008_create_story_tables.sql에서 child_profile_id 컬럼+FK 확인됨, 활성화)
+ChildProfile.hasMany(Story, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+Story.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 
 // 인증/계정 관련 관계
 User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -46,6 +50,24 @@ GuardianSetting.belongsTo(User, { foreignKey: 'user_id' });
 ChildProfile.hasMany(UsageDailySummary, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
 UsageDailySummary.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 
+// 즐겨찾기 관계
+ChildProfile.hasMany(StoryFavorite, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+StoryFavorite.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
+Story.hasMany(StoryFavorite, { foreignKey: 'story_id', onDelete: 'CASCADE' });
+StoryFavorite.belongsTo(Story, { foreignKey: 'story_id' });
+
+// 단어장 관계
+ChildProfile.hasMany(VocabularyEntry, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+VocabularyEntry.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
+// 퀴즈 관계
+QuizSet.hasMany(QuizQuestion, { foreignKey: 'quiz_set_id', onDelete: 'CASCADE' });
+QuizQuestion.belongsTo(QuizSet, { foreignKey: 'quiz_set_id' });
+
+QuizQuestion.hasMany(QuizOption, { foreignKey: 'quiz_question_id', onDelete: 'CASCADE' });
+QuizOption.belongsTo(QuizQuestion, { foreignKey: 'quiz_question_id' });
+
 const db = {
   sequelize,
   Character,
@@ -59,6 +81,11 @@ const db = {
   ChildProfile,
   GuardianSetting,
   UsageDailySummary,
+  StoryFavorite,
+  VocabularyEntry,
+  QuizSet,
+  QuizQuestion,
+  QuizOption,
 };
 
 module.exports = db;
