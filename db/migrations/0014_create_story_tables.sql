@@ -1,4 +1,4 @@
--- 0008_create_story_tables.sql
+-- 0014_create_story_tables.sql
 --
 -- 동화 생성 기능(SG01~SG04)을 위한 테이블 신규 생성:
 --   1) characters — 동화 주인공 캐릭터 (PRESET/CUSTOM/RANDOM)
