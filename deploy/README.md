@@ -74,6 +74,9 @@ cp .env.production.example .env
 nano .env
 ```
 
+`TRUST_PROXY=true`를 꼭 켠다 — Nginx 뒤에서 돌기 때문이다. 켜지 않으면 요청 제한이
+**모든 요청을 Nginx 하나의 IP로 보고 전체 사용자를 함께 막는다.**
+
 JWT 시크릿은 반드시 새로 만든다:
 
 ```bash

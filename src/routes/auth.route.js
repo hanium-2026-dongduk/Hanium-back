@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
+const { loginLimiter, emailLimiter, verifyLimiter } = require('../middlewares/rateLimit');
 
 /**
  * @openapi
@@ -88,7 +89,12 @@ router.post('/signup', authController.signupValidation, authController.signup);
  *             schema: { $ref: '#/components/schemas/Error' }
  *       429: { $ref: '#/components/responses/TooManyRequests' }
  */
-router.post('/email/send', authController.sendVerificationValidation, authController.sendVerification);
+router.post(
+  '/email/send',
+  emailLimiter,
+  authController.sendVerificationValidation,
+  authController.sendVerification
+);
 
 /**
  * @openapi
@@ -122,7 +128,12 @@ router.post('/email/send', authController.sendVerificationValidation, authContro
  *             schema: { $ref: '#/components/schemas/Error' }
  *       429: { $ref: '#/components/responses/TooManyRequests' }
  */
-router.post('/email/verify', authController.verifyEmailValidation, authController.verifyEmail);
+router.post(
+  '/email/verify',
+  verifyLimiter,
+  authController.verifyEmailValidation,
+  authController.verifyEmail
+);
 
 /**
  * @openapi
@@ -166,7 +177,7 @@ router.post('/email/verify', authController.verifyEmailValidation, authControlle
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/login', authController.loginValidation, authController.login);
+router.post('/login', loginLimiter, authController.loginValidation, authController.login);
 
 /**
  * @openapi
@@ -269,6 +280,7 @@ router.post('/refresh', authController.refreshValidation, authController.refresh
  */
 router.post(
   '/password/reset-request',
+  emailLimiter,
   authController.passwordResetRequestValidation,
   authController.passwordResetRequest
 );
@@ -318,6 +330,11 @@ router.post(
  *             schema: { $ref: '#/components/schemas/Error' }
  *       429: { $ref: '#/components/responses/TooManyRequests' }
  */
-router.put('/password/reset', authController.passwordResetValidation, authController.passwordReset);
+router.put(
+  '/password/reset',
+  verifyLimiter,
+  authController.passwordResetValidation,
+  authController.passwordReset
+);
 
 module.exports = router;
