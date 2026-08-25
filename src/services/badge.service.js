@@ -136,14 +136,27 @@ const evaluateAndAward = async (childProfileId, { transaction } = {}) => {
       const current = measured.get(type);
       if (current === null || current < value) continue;
 
-      // UNIQUE(child_profile_id, badge_code)가 중복을 막는다. 동시 실행으로 다른 쪽이
-      // 먼저 넣었으면 created=false로 돌아오므로 수여 목록에 넣지 않는다.
-      const [, created] = await ChildBadge.findOrCreate({
-        where: { child_profile_id: childProfileId, badge_code: badge.badge_code },
-        defaults: { awarded_at: new Date() },
-        transaction: t,
-      });
-      if (created) awarded.push(badge.badge_code);
+      // UNIQUE(child_profile_id, badge_code)가 중복 수여를 막는다.
+      //
+      // findOrCreate를 쓰지 않는 이유: 트랜잭션 안에서 동시에 같은 배지를 넣으면,
+      // 진 쪽이 재조회를 해도 이긴 쪽이 아직 커밋 전이라 행이 보이지 않아 결국
+      // UniqueConstraintError를 다시 던진다. 그래서 attendance.service의
+      // createAttendanceLogIfAbsent와 같은 방식으로 직접 잡는다.
+      // (MySQL은 중복 키 오류로 트랜잭션 전체가 무효화되지 않으므로 이어서 진행해도 된다)
+      try {
+        await ChildBadge.create(
+          {
+            child_profile_id: childProfileId,
+            badge_code: badge.badge_code,
+            awarded_at: new Date(),
+          },
+          { transaction: t }
+        );
+        awarded.push(badge.badge_code);
+      } catch (err) {
+        if (err.name !== 'SequelizeUniqueConstraintError') throw err;
+        // 동시에 돌던 다른 판정이 먼저 넣었다. 이미 받은 배지이므로 넘어간다.
+      }
     }
 
     return { awarded };

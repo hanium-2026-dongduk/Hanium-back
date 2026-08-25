@@ -1,5 +1,5 @@
 jest.mock('../../src/models', () => ({
-  ChildBadge: { findAll: jest.fn(), findOrCreate: jest.fn() },
+  ChildBadge: { findAll: jest.fn(), create: jest.fn() },
   AttendanceLog: { count: jest.fn() },
   DailyMission: { count: jest.fn() },
   RewardWallet: { findOne: jest.fn() },
@@ -32,7 +32,7 @@ const mockOwned = (codes) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  ChildBadge.findOrCreate.mockImplementation(async () => [{}, true]);
+  ChildBadge.create.mockResolvedValue({});
 });
 
 describe('배지 카탈로그', () => {
@@ -82,7 +82,7 @@ describe('배지 수여는', () => {
     const { awarded } = await badgeService.evaluateAndAward(CHILD_ID);
 
     expect(awarded).toEqual([]);
-    expect(ChildBadge.findOrCreate).not.toHaveBeenCalled();
+    expect(ChildBadge.create).not.toHaveBeenCalled();
   });
 
   test('같은 지표를 쓰는 배지들을 한 번에 준다', async () => {
@@ -128,15 +128,28 @@ describe('배지 수여는', () => {
     expect(awarded).not.toContain('vocabulary_100');
   });
 
-  test('동시 실행으로 다른 쪽이 먼저 넣었으면 수여 목록에 넣지 않는다', async () => {
+  test('동시 실행으로 다른 쪽이 먼저 넣었으면 UNIQUE 오류를 삼키고 넘어간다', async () => {
+    // 트랜잭션 안에서 동시에 같은 배지를 넣으면 진 쪽은 UniqueConstraintError를 받는다.
+    // (실제 스모크 테스트에서 발견된 상황 — findOrCreate로는 처리되지 않았다)
     mockOwned([]);
     mockMetrics({ attendance: 1 });
-    // UNIQUE 제약에 걸려 created:false로 돌아온 상황
-    ChildBadge.findOrCreate.mockResolvedValue([{}, false]);
+    const duplicate = Object.assign(new Error('Validation error'), {
+      name: 'SequelizeUniqueConstraintError',
+    });
+    ChildBadge.create.mockRejectedValueOnce(duplicate);
 
     const { awarded } = await badgeService.evaluateAndAward(CHILD_ID);
 
-    expect(awarded).toEqual([]);
+    // 실패한 배지만 빠지고 나머지 판정은 계속된다.
+    expect(awarded).not.toContain('attendance_first');
+  });
+
+  test('UNIQUE 외의 오류는 그대로 올린다', async () => {
+    mockOwned([]);
+    mockMetrics({ attendance: 1 });
+    ChildBadge.create.mockRejectedValue(new Error('DB 연결 끊김'));
+
+    await expect(badgeService.evaluateAndAward(CHILD_ID)).rejects.toThrow('DB 연결 끊김');
   });
 
   test('지갑이 없는 자녀도 예외 없이 판정된다', async () => {
