@@ -16,11 +16,20 @@ const StickerSend = require('./stickerSend.model');
 User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 RefreshToken.belongsTo(User, { foreignKey: 'user_id' });
 
-// onDelete는 RESTRICT (CASCADE 아님) — child_profiles.user_id는 활성 프로필 단일성을
-// 강제하는 STORED 생성 컬럼(active_owner_id)의 베이스 컬럼인데, InnoDB는 생성 컬럼이
+// onDelete·onUpdate 모두 RESTRICT (CASCADE 아님) — child_profiles.user_id는 활성 프로필
+// 단일성을 강제하는 STORED 생성 컬럼(active_owner_id)의 베이스 컬럼인데, InnoDB는 생성 컬럼이
 // 의존하는 컬럼에 CASCADE/SET NULL FK를 거는 것을 허용하지 않는다. 실제 DB 제약과
 // 동일하게 맞춰둔다 (db/migrations/0006_add_missing_user_foreign_keys.sql 참고).
-User.hasMany(ChildProfile, { foreignKey: 'user_id', onDelete: 'RESTRICT' });
+//
+// **onUpdate를 반드시 명시해야 한다.** Sequelize의 기본값이 CASCADE라, 빼먹으면 sync()가
+// ON UPDATE CASCADE로 FK를 만들고 그 위에 마이그레이션 0003을 적용할 때 실패한다
+// (ERROR 1215). 마이그레이션이 만드는 스키마와 sync()가 만드는 스키마가 달라지는 셈이라,
+// 개발 환경에서만 터지고 배포 환경에서는 안 보이는 종류의 어긋남이 된다.
+User.hasMany(ChildProfile, {
+  foreignKey: 'user_id',
+  onDelete: 'RESTRICT',
+  onUpdate: 'RESTRICT',
+});
 ChildProfile.belongsTo(User, { foreignKey: 'user_id' });
 
 User.hasOne(GuardianSetting, { foreignKey: 'user_id', onDelete: 'CASCADE' });
