@@ -19,6 +19,7 @@ const AttendanceLog = require('./attendanceLog.model');
 const DailyMission = require('./dailyMission.model');
 const RewardWallet = require('./rewardWallet.model');
 const RewardTransaction = require('./rewardTransaction.model');
+const QuizAttempt = require('./quizAttempt.model');
 
 // 동화 생성 관련 관계
 Character.hasMany(Story, { foreignKey: 'character_id', onDelete: 'RESTRICT' });
@@ -86,6 +87,12 @@ RewardWallet.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 ChildProfile.hasMany(RewardTransaction, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
 RewardTransaction.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 
+ChildProfile.hasMany(QuizAttempt, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+QuizAttempt.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
+QuizSet.hasMany(QuizAttempt, { foreignKey: 'quiz_set_id', onDelete: 'CASCADE' });
+QuizAttempt.belongsTo(QuizSet, { foreignKey: 'quiz_set_id' });
+
 const db = {
   sequelize,
   Character,
@@ -108,6 +115,7 @@ const db = {
   DailyMission,
   RewardWallet,
   RewardTransaction,
+  QuizAttempt,
 };
 
 module.exports = db;
