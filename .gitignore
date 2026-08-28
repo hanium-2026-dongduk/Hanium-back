@@ -172,3 +172,7 @@ public/audio/*
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/node,visualstudiocode,dotenv
+
+### Project ###
+# ERD 산출물(PDF). 용량이 크고 갱신마다 히스토리에 통째로 쌓여 리포에 두지 않는다.
+ERD/

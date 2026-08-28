@@ -11,6 +11,9 @@ const storyFavoriteRouter = require('./storyFavorite.route');
 const vocabularyRouter = require('./vocabulary.route');
 const quizRouter = require('./quiz.route');
 
+const attendanceRouter = require('./attendance.route');
+const missionRouter = require('./mission.route');
+const rewardRouter = require('./reward.route');
 
 const router = express.Router();
 
@@ -25,5 +28,8 @@ router.use('/usage', usageRouter);
 router.use('/favorites', storyFavoriteRouter);
 router.use('/vocabulary', vocabularyRouter);
 router.use('/quizzes', quizRouter);
+router.use('/attendance', attendanceRouter);
+router.use('/missions', missionRouter);
+router.use('/rewards', rewardRouter);
 
 module.exports = router;
