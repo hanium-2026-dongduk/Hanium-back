@@ -14,6 +14,7 @@ const quizRouter = require('./quiz.route');
 const attendanceRouter = require('./attendance.route');
 const missionRouter = require('./mission.route');
 const rewardRouter = require('./reward.route');
+const dashboardRouter = require('./dashboard.route');
 
 const router = express.Router();
 
@@ -31,5 +32,6 @@ router.use('/quizzes', quizRouter);
 router.use('/attendance', attendanceRouter);
 router.use('/missions', missionRouter);
 router.use('/rewards', rewardRouter);
+router.use('/dashboard', dashboardRouter);
 
 module.exports = router;
