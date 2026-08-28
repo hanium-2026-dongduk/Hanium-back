@@ -6,6 +6,7 @@ const characterRouter = require('./character.router');
 const storySettingRouter = require('./storySetting.router');
 const { authenticate } = require('../middlewares/auth');
 const storyLibraryController = require('../controllers/storyLibrary.controller');
+const response = require('../utils/response');
 
 // 1. [수~목] 동화 생성 및 트랜잭션 저장 API (POST /api/stories)
 router.post('/', async (req, res, next) => {
@@ -13,22 +14,19 @@ router.post('/', async (req, res, next) => {
     const { characterId, backgroundId, background, mainEventId, mainEvent, childAge, childProfileId } = req.body;
 
     if (!characterId || (!backgroundId && !background) || (!mainEventId && !mainEvent)) {
-      return res.status(400).json({
-        success: false,
-        message: "characterId와 배경/사건 정보(선택 또는 직접입력)가 필요합니다."
-      });
+      return response.error(res, 400, 'characterId와 배경/사건 정보(선택 또는 직접입력)가 필요합니다.');
     }
 
     const character = characterRouter.characters?.find(c => c.id === Number(characterId));
     if (!character) {
-      return res.status(404).json({ success: false, message: "캐릭터를 찾을 수 없습니다." });
+      return response.error(res, 404, '캐릭터를 찾을 수 없습니다.');
     }
 
     const resolvedBackground = background || storySettingRouter.presets?.backgrounds.find(b => b.id === backgroundId)?.name;
     const resolvedMainEvent = mainEvent || storySettingRouter.presets?.mainEvents.find(m => m.id === mainEventId)?.name;
 
     if (!resolvedBackground || !resolvedMainEvent) {
-      return res.status(400).json({ success: false, message: "유효하지 않은 배경 또는 이벤트입니다." });
+      return response.error(res, 400, '유효하지 않은 배경 또는 이벤트입니다.');
     }
 
     const setting = { background: resolvedBackground, mainEvent: resolvedMainEvent };
@@ -48,17 +46,13 @@ router.post('/', async (req, res, next) => {
       mainEvent: resolvedMainEvent,
       aiStory
     });
-    return res.status(201).json({ success: true, data: savedStory });
+    return response.success(res, 201, '동화가 생성되었습니다.', savedStory);
     */
 
-    res.status(201).json({
-      success: true,
-      message: "동화가 생성되었습니다.",
-      data: {
-        character: character.name,
-        setting,
-        ...aiStory
-      }
+    return response.success(res, 201, '동화가 생성되었습니다.', {
+      character: character.name,
+      setting,
+      ...aiStory
     });
 
   } catch (error) {
@@ -86,21 +80,18 @@ router.get('/:id', async (req, res, next) => {
     `, [id]);
     */
 
-    res.status(200).json({
-      success: true,
-      data: {
-        storyId: Number(id),
-        title: "Toto's Adventure",
-        pages: [
-          {
-            pageNumber: 1,
-            content: "Once upon a time, there was a brave rabbit named Toto.",
-            imageUrl: "/images/sample1.png",
-            audioUrl: "/audio/sample1.wav"
-          }
-        ],
-        choices: ["Go into the forest", "Return home"]
-      }
+    return response.success(res, 200, '동화 상세를 조회했습니다.', {
+      storyId: Number(id),
+      title: "Toto's Adventure",
+      pages: [
+        {
+          pageNumber: 1,
+          content: "Once upon a time, there was a brave rabbit named Toto.",
+          imageUrl: "/images/sample1.png",
+          audioUrl: "/audio/sample1.wav"
+        }
+      ],
+      choices: ["Go into the forest", "Return home"]
     });
   } catch (error) {
     next(error);
