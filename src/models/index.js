@@ -9,6 +9,8 @@ const AttendanceLog = require('./attendanceLog.model');
 const DailyMission = require('./dailyMission.model');
 const RewardWallet = require('./rewardWallet.model');
 const RewardTransaction = require('./rewardTransaction.model');
+const ChildBadge = require('./childBadge.model');
+const StickerSend = require('./stickerSend.model');
 
 // 관계 설정
 User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -42,6 +44,17 @@ RewardWallet.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 ChildProfile.hasMany(RewardTransaction, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
 RewardTransaction.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 
+// Week4 — 배지 획득 기록. 배지 "종류"는 DB가 아니라 src/config/badgeCatalog.js에 있다.
+ChildProfile.hasMany(ChildBadge, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+ChildBadge.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
+// 칭찬 스티커. 자녀가 지워지면 함께 지우되, 보낸 보호자가 지워질 때는 막는다(RESTRICT) —
+// 아이가 받은 칭찬 기록이 계정 삭제로 조용히 사라지지 않게 하기 위함이다.
+ChildProfile.hasMany(StickerSend, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+StickerSend.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+User.hasMany(StickerSend, { foreignKey: 'sender_user_id', onDelete: 'RESTRICT' });
+StickerSend.belongsTo(User, { foreignKey: 'sender_user_id', as: 'sender' });
+
 const db = {
   sequelize,
   User,
@@ -54,6 +67,8 @@ const db = {
   DailyMission,
   RewardWallet,
   RewardTransaction,
+  ChildBadge,
+  StickerSend,
 };
 
 module.exports = db;
