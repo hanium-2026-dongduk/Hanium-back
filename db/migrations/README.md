@@ -28,12 +28,19 @@
 | `0005_create_usage_daily_summaries.sql` | `usage_daily_summaries` 테이블 신규 생성 (자녀별 일일 사용 시간 서버 집계) | `child_profiles` FK, `ON DELETE CASCADE` |
 | `0006_add_missing_user_foreign_keys.sql` | `child_profiles`/`guardian_settings`/`refresh_tokens`의 `user_id → users.user_id` FK 누락 시 추가 | 기존 DB에 orphan 행이 있으면 실패할 수 있음(의도된 동작, 아래 참고) |
 | `0007_guardian_pin_version_and_reauth_lockout.sql` | `guardian_settings.pin_version`, `reauth_failed_attempts`, `reauth_locked_until` 컬럼 추가 | PIN 변경 시 기존 guardianToken 즉시 무효화 + 비밀번호 재인증(POST /guardian/reauth) DB 기반 잠금 |
+| `0008_create_attendance_logs.sql` | `attendance_logs` 테이블 신규 생성 (자녀별 일일 출석) | `UNIQUE(child_profile_id, attendance_date)`로 하루 1회 강제. `child_profiles` FK, `ON DELETE CASCADE` |
+| `0009_create_daily_missions.sql` | `daily_missions` 테이블 신규 생성 (자녀별 하루치 데일리 미션 진행 상태) | `UNIQUE(child_profile_id, mission_date, mission_type)`. 스케줄러 없이 지연 생성 |
+| `0010_create_reward_wallets.sql` | `reward_wallets` 테이블 신규 생성 (포인트 잔액/레벨/연속출석일) | `UNIQUE(child_profile_id)` + `CHECK(points >= 0)`. **MySQL 8.0.16+ 필요**(CHECK 강제) |
+| `0011_create_reward_transactions.sql` | `reward_transactions` 테이블 신규 생성 (포인트 지급 원장) | `UNIQUE(child_profile_id, idempotency_key)`로 중복 지급 차단 + `CHECK(points > 0)` |
 
 ## 적용 시 주의사항
 
 - **0003**: 이전 버전 코드는 프로필 생성 시 항상 `is_active=true`로 만들어, 한 유저가 활성 프로필을 2개
   이상 가진 상태가 이미 존재할 수 있다. 이 마이그레이션은 UNIQUE 인덱스를 걸기 전에 그런 유저의
   프로필 중 가장 최근 생성된 것만 남기고 나머지를 비활성화하는 정리 UPDATE를 자동으로 먼저 실행한다.
+- **0008~0011**: 전부 신규 테이블 생성이라 기존 데이터에 대한 변환이 없고, `CREATE TABLE IF NOT EXISTS`만으로
+  재실행 안전하다. 다만 **0010은 MySQL 8.0.16 미만에서는 `CHECK` 제약이 무시된다**(문법 오류는 나지 않고
+  조용히 파싱만 됨) — 그 경우 잔액 음수 방지는 애플리케이션(`rewardService.addPoints`)만이 담당하게 된다.
 - **0006**: `users`에 존재하지 않는 `user_id`를 참조하는 행(orphan)이 있으면 FK 추가가 실패한다.
   이는 의도된 동작이다 — 데이터 정합성 문제를 조용히 덮지 않고 표면화한다. 실패 시
   `information_schema`로 orphan 행을 먼저 찾아 정리한 뒤 재실행한다.

@@ -12,6 +12,7 @@
     "migrate": "node db/migrations/run.js",
     "smoke": "node tests/smoke/auth.smoke.js",
     "smoke:week2": "node tests/smoke/week2.smoke.js",
+    "smoke:week3": "node tests/smoke/week3.smoke.js",
     "smoke:migration": "node tests/smoke/migration.smoke.js"
   },
   "repository": {
@@ -47,5 +48,9 @@
     "nodemon": "^3.1.14",
     "prettier": "^3.9.5",
     "supertest": "^7.2.2"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "unrs-resolver@1.12.2": true
   }
 }

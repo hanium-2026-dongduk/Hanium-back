@@ -5,6 +5,10 @@ const RefreshToken = require('./refreshToken.model');
 const ChildProfile = require('./childProfile.model');
 const GuardianSetting = require('./guardianSetting.model');
 const UsageDailySummary = require('./usageDailySummary.model');
+const AttendanceLog = require('./attendanceLog.model');
+const DailyMission = require('./dailyMission.model');
+const RewardWallet = require('./rewardWallet.model');
+const RewardTransaction = require('./rewardTransaction.model');
 
 // 관계 설정
 User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -23,6 +27,21 @@ GuardianSetting.belongsTo(User, { foreignKey: 'user_id' });
 ChildProfile.hasMany(UsageDailySummary, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
 UsageDailySummary.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 
+// Week3 — 자녀 소유 데이터는 프로필이 삭제되면 함께 삭제된다(usage_daily_summaries와
+// 동일 정책). child_profiles.user_id와 달리 이 FK들은 생성 컬럼의 베이스가 아니므로
+// CASCADE에 제약이 없다.
+ChildProfile.hasMany(AttendanceLog, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+AttendanceLog.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
+ChildProfile.hasMany(DailyMission, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+DailyMission.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
+ChildProfile.hasOne(RewardWallet, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+RewardWallet.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
+ChildProfile.hasMany(RewardTransaction, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+RewardTransaction.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
 const db = {
   sequelize,
   User,
@@ -31,6 +50,10 @@ const db = {
   ChildProfile,
   GuardianSetting,
   UsageDailySummary,
+  AttendanceLog,
+  DailyMission,
+  RewardWallet,
+  RewardTransaction,
 };
 
 module.exports = db;
