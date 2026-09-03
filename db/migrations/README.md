@@ -13,6 +13,10 @@
      mysql -u <user> -p <database> < db/migrations/0001_add_attempts_to_email_verifications.sql
      ```
 4. Sequelize 모델(`src/models/*.model.js`)의 컬럼 정의를 바꿀 때는 반드시 대응하는 마이그레이션 SQL을 이 디렉터리에 함께 추가한다.
+   **관계(FK)를 정의할 때는 `onDelete`뿐 아니라 `onUpdate`도 명시한다** — Sequelize의 기본값이
+   `CASCADE`라, 빼먹으면 `sync()`가 만드는 스키마와 마이그레이션이 만드는 스키마가 달라진다.
+   개발 환경에서만 터지고 배포 환경에서는 안 보이는 종류의 어긋남이 되므로 찾기 어렵다.
+   (실제로 `child_profiles.user_id`에서 이 문제가 있었다 — 0003 주석 참고)
    (모델만 바꾸고 실제 DB에 반영하지 않으면 배포 환경에서 컬럼 불일치로 쿼리가 실패한다.)
 5. 각 마이그레이션 파일 상단에는 `-- Rollback:` 주석으로 되돌리는 SQL을 함께 남긴다. 자동 롤백 러너는 없으므로
    필요 시 해당 SQL을 수동으로 실행한다. **반드시 최신 파일부터 역순으로** 롤백해야 한다.

@@ -281,6 +281,79 @@ async function main() {
     await run();
   });
 
+  // ── sequelize.sync()로 만든 스키마에도 적용되는지 ──────────────────────────
+  //
+  // 위 BASELINE_SQL은 child_profiles.user_id에 FK를 걸지 않아 이 경로를 타지 않는다.
+  // 그런데 실제 로컬 세팅은 `sync()` → `migrate` 순서로 하고, sync()가 만드는 FK는
+  // (onUpdate를 명시하지 않으면) ON UPDATE CASCADE다. InnoDB는 STORED 생성 컬럼이
+  // 의존하는 컬럼에 그런 FK를 허용하지 않아 0003이 ERROR 1215로 실패했었다.
+  const SYNC_DB_NAME = 'hanium_migration_sync_check';
+
+  await step('sync()가 만든 ON UPDATE CASCADE FK 위에서도 마이그레이션이 적용된다', async () => {
+    const admin = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT),
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      multipleStatements: true,
+    });
+    await admin.query(`DROP DATABASE IF EXISTS \`${SYNC_DB_NAME}\``);
+    await admin.query(`CREATE DATABASE \`${SYNC_DB_NAME}\``);
+    await admin.end();
+
+    const syncConn = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT),
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: SYNC_DB_NAME,
+      multipleStatements: true,
+    });
+    // sync()가 만드는 것과 같은 모양: user_id에 ON UPDATE CASCADE FK가 걸린 상태.
+    await syncConn.query(BASELINE_SQL);
+    await syncConn.query(
+      'ALTER TABLE child_profiles ADD CONSTRAINT child_profiles_ibfk_1 ' +
+        'FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT ON UPDATE CASCADE'
+    );
+
+    process.env.DB_NAME = SYNC_DB_NAME;
+    try {
+      // env.js와 run.js는 모듈 로드 시점의 DB_NAME을 캐시한다. 캐시를 비워야 위에서 바꾼
+      // DB_NAME이 반영된다 — 안 그러면 조용히 앞의 DB에 다시 적용되고 통과해 버린다.
+      delete require.cache[require.resolve('../../src/config/env')];
+      delete require.cache[require.resolve('../../db/migrations/run')];
+      const { run: runOnSyncDb } = require('../../db/migrations/run');
+
+      // 여기서 던지면 0003이 다시 깨진 것이다.
+      await runOnSyncDb();
+
+      const [cols] = await syncConn.query(
+        "SELECT EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? " +
+          "AND TABLE_NAME = 'child_profiles' AND COLUMN_NAME = 'active_owner_id'",
+        [SYNC_DB_NAME]
+      );
+      assert.strictEqual(cols.length, 1, 'active_owner_id 생성 컬럼이 만들어지지 않았습니다.');
+
+      // 0003이 떼어낸 FK를 0006이 호환되는 규칙으로 다시 걸어줘야 한다.
+      const [fks] = await syncConn.query(
+        'SELECT UPDATE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS ' +
+          "WHERE CONSTRAINT_SCHEMA = ? AND TABLE_NAME = 'child_profiles'",
+        [SYNC_DB_NAME]
+      );
+      assert.strictEqual(fks.length, 1, `child_profiles의 FK가 ${fks.length}개입니다 (1개여야 함).`);
+      assert.ok(
+        ['RESTRICT', 'NO ACTION'].includes(fks[0].UPDATE_RULE),
+        `FK의 UPDATE_RULE이 ${fks[0].UPDATE_RULE}입니다 (RESTRICT여야 함).`
+      );
+    } finally {
+      process.env.DB_NAME = CHECK_DB_NAME;
+      delete require.cache[require.resolve('../../src/config/env')];
+      delete require.cache[require.resolve('../../db/migrations/run')];
+      await syncConn.query(`DROP DATABASE IF EXISTS \`${SYNC_DB_NAME}\``).catch(() => {});
+      await syncConn.end();
+    }
+  });
+
   await conn.end();
 
   console.log(`\n마이그레이션 스모크 테스트 결과: ${passCount} passed, ${failCount} failed`);
