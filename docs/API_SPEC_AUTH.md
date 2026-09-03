@@ -2,6 +2,10 @@
 
 > Base URL: `{SERVER_URL}/api/auth`
 > Content-Type: `application/json`
+>
+> **계약의 원본은 Swagger다** — 서버를 띄우고 `/api-docs`에서 볼 수 있다(스펙 원본은
+> `/api-docs.json`). 코드 옆 주석에서 생성되므로 구현과 어긋나지 않는다.
+> 이 문서는 **왜 이렇게 설계했는지**(정책 배경, 대안 비교)를 남기는 용도로 유지한다.
 
 ---
 
