@@ -143,6 +143,50 @@ cd ~/hanium-back && bash deploy/deploy.sh main
 - PM2는 그 신호를 받고 나서 다음 워커로 넘어간다 (`wait_ready: true`)
 - 옛 워커는 SIGINT를 받고 진행 중인 요청을 마친 뒤 DB 연결을 닫고 종료한다
 
+## 9. GitHub Actions 자동 배포
+
+`.github/workflows/deploy.yml`은 `main`의 CI가 전부 성공한 뒤 EC2에서 위 재배포
+스크립트를 실행한다. GitHub 저장소의 **Settings → Environments → New environment**에서
+`production`을 만들고 다음 Environment secrets를 등록한다.
+
+| Secret | 값 |
+| :--- | :--- |
+| `EC2_HOST` | EC2 탄력적 IP 또는 퍼블릭 DNS |
+| `EC2_USER` | Ubuntu AMI이면 `ubuntu` |
+| `EC2_SSH_KEY` | `.pem` 파일의 시작/끝 줄을 포함한 전체 내용 |
+| `EC2_KNOWN_HOSTS` | 신뢰할 수 있는 환경에서 확인한 EC2 SSH 호스트 키 |
+| `EC2_SSH_PORT` | 선택 사항. 생략하면 `22` |
+
+`.pem` 파일은 저장소에 복사하거나 커밋하지 않는다. GitHub Actions는 실행할 때만 Secret을
+임시 키 파일로 만들며 작업이 끝나면 러너와 함께 폐기한다.
+
+22번 포트를 본인 IP에 잠시 허용하고 최초 SSH 접속 때 표시되는 지문을 EC2 콘솔의 호스트
+키와 대조한 다음, 아래 명령 결과를 `EC2_KNOWN_HOSTS`에 저장한다.
+
+```bash
+ssh-keyscan -H -p 22 <EC2_HOST>
+```
+
+워크플로 실행 중 새로 스캔한 키를 곧바로 신뢰하지 않고 이 값을 고정해서 중간자 공격을
+탐지한다. 인스턴스를 재생성해 호스트 키가 바뀌면 다시 확인하고 Secret을 갱신해야 한다.
+
+EC2 보안 그룹에서 GitHub-hosted runner의 유동 IP를 허용하기 어려우면 22번을 전 세계에
+상시 개방하지 말고, self-hosted runner·AWS Systems Manager 같은 고정된 배포 경로로
+전환해야 한다. 최초 서버 세팅과 `.env` 작성은 자동화 대상이 아니므로 한 번은 직접 해야 한다.
+
+### 롤백
+
+문제가 생긴 커밋의 바로 이전 정상 커밋 SHA를 GitHub에서 확인한 뒤 EC2에서 실행한다.
+
+```bash
+cd ~/hanium-back
+bash deploy/deploy.sh <정상_커밋_SHA>
+```
+
+현재 마이그레이션은 기존 컬럼을 삭제하지 않는 추가형이라 이전 앱과 호환된다. 추후 파괴적
+마이그레이션이 추가되면 DB 롤백 절차를 별도로 준비한 뒤 배포해야 한다. 다음 정상 배포 때는
+다시 `main`으로 복귀한다.
+
 ---
 
 ## 자주 쓰는 명령
