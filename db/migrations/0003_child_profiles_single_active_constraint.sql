@@ -37,6 +37,55 @@ SET cp.`is_active` = 0;
 
 DELIMITER $$
 
+-- 생성 컬럼을 붙이기 전에, 그 컬럼이 의존할 `user_id`에 걸린 FK가 호환되는지 정리한다.
+--
+-- InnoDB는 STORED 생성 컬럼이 의존하는 컬럼에 CASCADE/SET NULL FK를 허용하지 않는다.
+-- 그런데 `sequelize.sync()`는 onUpdate 기본값이 CASCADE라 `ON UPDATE CASCADE`로 FK를
+-- 만든다. 그 위에 이 마이그레이션을 적용하면 아래 ADD COLUMN이 ERROR 1215로 실패한다
+-- (마이그레이션으로 만든 스키마에서는 0006이 RESTRICT로 걸어 문제가 없어, 신규 로컬
+-- 세팅에서만 터지는 어긋남이었다).
+--
+-- 여기서 호환되지 않는 FK를 떼어내면 뒤이어 도는 0006이 RESTRICT로 다시 걸어준다.
+-- 제약 이름이 환경마다 다르므로(sync는 `child_profiles_ibfk_1`) 이름을 조회해서 지운다.
+--
+-- 모델 쪽도 `onUpdate: 'RESTRICT'`를 명시해 두었으므로, 앞으로 sync()가 만드는 스키마는
+-- 처음부터 호환된다. 이 절차는 그 이전에 만들어진 DB를 위한 것이다.
+DROP PROCEDURE IF EXISTS `_migration_0003_drop_incompatible_fk` $$
+
+CREATE PROCEDURE `_migration_0003_drop_incompatible_fk`()
+BEGIN
+  DECLARE fk_name VARCHAR(64) DEFAULT NULL;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET fk_name = NULL;
+
+  SELECT rc.CONSTRAINT_NAME INTO fk_name
+  FROM information_schema.REFERENTIAL_CONSTRAINTS rc
+  JOIN information_schema.KEY_COLUMN_USAGE kcu
+    ON kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+   AND kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+   AND kcu.TABLE_NAME = rc.TABLE_NAME
+  WHERE rc.CONSTRAINT_SCHEMA = DATABASE()
+    AND rc.TABLE_NAME = 'child_profiles'
+    AND kcu.COLUMN_NAME = 'user_id'
+    AND (rc.UPDATE_RULE IN ('CASCADE', 'SET NULL')
+      OR rc.DELETE_RULE IN ('CASCADE', 'SET NULL'))
+  LIMIT 1;
+
+  IF fk_name IS NOT NULL THEN
+    SET @drop_fk_sql = CONCAT('ALTER TABLE `child_profiles` DROP FOREIGN KEY `', fk_name, '`');
+    PREPARE drop_fk_stmt FROM @drop_fk_sql;
+    EXECUTE drop_fk_stmt;
+    DEALLOCATE PREPARE drop_fk_stmt;
+  END IF;
+END $$
+
+DELIMITER ;
+
+CALL `_migration_0003_drop_incompatible_fk`();
+
+DROP PROCEDURE IF EXISTS `_migration_0003_drop_incompatible_fk`;
+
+DELIMITER $$
+
 DROP PROCEDURE IF EXISTS `_migration_0003_active_owner_column` $$
 
 CREATE PROCEDURE `_migration_0003_active_owner_column`()

@@ -36,8 +36,10 @@ DB_HOST=127.0.0.1 DB_PORT=3306 DB_USER=root DB_PASSWORD= npm run smoke:migration
   컨테이너 또는 포터블 바이너리)만 대상으로 한다.
 - Week 2(자녀 프로필 등) 테이블도 `sync()` 대상에 포함되므로 해당 모델에 정의된 스키마 그대로
   생성된다. 이 스크립트는 그 로직을 수정하지 않고 배선(인증 미들웨어 통과 여부)만 확인한다.
-- CI에 아직 통합되어 있지 않다. 로컬에 MySQL이 없다면 아래처럼 Docker로 즉석에서 띄우거나(권장),
-  `db/migrations/README.md`를 참고해 포터블 MySQL 바이너리로 직접 띄울 수 있다.
+- **CI에서 자동으로 돈다** (`.github/workflows/ci.yml`의 `smoke` 잡). PR을 열면 GitHub Actions가
+  MySQL 8 서비스 컨테이너를 띄우고 네 스크립트를 순서대로 실행한다. 로컬에서 직접 돌릴 때는
+  아래처럼 Docker로 즉석에서 띄우거나(권장), `db/migrations/README.md`를 참고해 포터블 MySQL
+  바이너리로 직접 띄울 수 있다.
 
   ```bash
   docker run --rm -e MYSQL_ALLOW_EMPTY_PASSWORD=yes -p 3306:3306 --name hanium-smoke-db mysql:8

@@ -9,8 +9,30 @@ if (isProduction && (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_
   );
 }
 
+/**
+ * CORS 허용 출처.
+ *
+ * 비워두면 **모든 출처를 허용**한다 — 개발 중에는 그게 편하지만 운영에서는 위험하다.
+ * 앱이 브라우저에서 돌지 않는(Flutter 네이티브) 지금은 실질 위험이 낮지만, 나중에
+ * 웹 클라이언트가 붙거나 관리자 페이지가 생기면 반드시 채워야 한다.
+ *
+ * 예: CORS_ORIGINS=https://app.example.com,https://admin.example.com
+ */
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 module.exports = {
   port: process.env.PORT || 3000,
+  isProduction,
+  corsOrigins,
+  /**
+   * Nginx 뒤에서 돌 때 실제 클라이언트 IP를 알기 위한 신뢰 프록시 수. 이걸 켜지 않으면
+   * rate limit이 **모든 요청을 Nginx 하나의 IP로 보고** 전체 사용자를 함께 막아버린다.
+   * 반대로 프록시가 없는데 켜면 클라이언트가 X-Forwarded-For를 위조해 제한을 우회할 수 있다.
+   */
+  trustProxy: process.env.TRUST_PROXY === 'true',
   db: {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT || 3306,
