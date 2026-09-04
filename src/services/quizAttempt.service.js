@@ -1,10 +1,11 @@
 const { QuizAttempt, QuizQuestion, QuizOption } = require('../models');
 const childService = require('./child.service');
 const rewardService = require('./reward.service');
+const missionService = require('./mission.service'); // A의 Week3 산출물
+const badgeService = require('./badge.service'); // A의 Week4 산출물
 const { withTransaction } = require('../utils/dbRetry');
 
-// 정답 1문항당 지급 포인트. 정확한 수치는 기획 확정 필요 — 임시값.
-const POINTS_PER_CORRECT_ANSWER = 5;
+const POINTS_PER_CORRECT_ANSWER = 5; // 임시값, 기획 확정 필요
 
 async function submitAttempt({ userId, childProfileId, quizSetId, answers }) {
   await childService.getById(userId, childProfileId);
@@ -39,9 +40,7 @@ async function submitAttempt({ userId, childProfileId, quizSetId, answers }) {
   const score = Math.round((correctCount / totalQuestions) * 100);
   const pointsEarned = correctCount * POINTS_PER_CORRECT_ANSWER;
 
-  // 채점 저장 + 포인트 지급을 하나의 트랜잭션으로 묶는다 (A의 reward.service.js와
-  // 동일한 withTransaction 패턴 사용 — sequelize.transaction() 직접 호출 안 함).
-return withTransaction(undefined, async (t) => {
+  const result = await withTransaction(undefined, async (t) => {
     const attempt = await QuizAttempt.create(
       {
         child_profile_id: childProfileId,
@@ -67,6 +66,14 @@ return withTransaction(undefined, async (t) => {
       });
     }
 
+    // Week3 A 설계문서 6절 계약: 미션 진행도도 같은 트랜잭션에서 갱신
+    await missionService.recordProgress({
+      childProfileId,
+      eventType: 'quiz_answered',
+      eventId: `quiz_attempt:${attempt.quiz_attempt_id}`,
+      transaction: t,
+    });
+
     return {
       attemptId: attempt.quiz_attempt_id,
       totalQuestions,
@@ -77,6 +84,12 @@ return withTransaction(undefined, async (t) => {
       leveledUp: rewardResult.leveledUp,
     };
   });
+
+  // 배지 판정은 트랜잭션 밖, 커밋 후 호출 (A 문서: "트랜잭션 안에서 부르지 마세요 —
+  // 배지 판정 실패가 본래 동작을 롤백시킵니다"). 실패해도 예외를 삼키고 [] 반환.
+  const badgesAwarded = await badgeService.evaluateQuietly(childProfileId);
+
+  return { ...result, badgesAwarded };
 }
 
 async function listAttempts(userId, childProfileId, { page = 1, limit = 20 } = {}) {

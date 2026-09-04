@@ -7,7 +7,18 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const QUESTION_COUNT = 5;
 const OPTION_COUNT = 4;
 
-async function getStoryFullText(storyId) {
+async function getStoryFullText(childProfileId, storyId) {
+  // story가 실제로 이 childProfileId 소유인지 먼저 확인
+  const [storyRows] = await pool.execute(
+    `SELECT story_id FROM stories WHERE story_id = ? AND child_profile_id = ?`,
+    [storyId, childProfileId]
+  );
+  if (storyRows.length === 0) {
+    const error = new Error('동화를 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
   const [pages] = await pool.execute(
     `SELECT content FROM story_pages WHERE story_id = ? ORDER BY page_number ASC`,
     [storyId]
@@ -103,7 +114,7 @@ async function callGeminiWithRetry(prompt, maxRetries = 3) {
  * 동화 기반 퀴즈 자동 생성. 이미 quiz_set이 있으면 재사용(status 재시도)한다.
  */
 async function generateFromStory(childProfileId, storyId) {
-  const storyText = await getStoryFullText(storyId);
+  const storyText = await getStoryFullText(childProfileId, storyId);
 
   const [quizSet] = await QuizSet.findOrCreate({
     where: { story_id: storyId },
