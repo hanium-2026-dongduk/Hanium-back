@@ -10,11 +10,11 @@ const StoryFavorite = sequelize.define(
       autoIncrement: true,
     },
     child_profile_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: false,
     },
     story_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: false,
     },
     created_at: {

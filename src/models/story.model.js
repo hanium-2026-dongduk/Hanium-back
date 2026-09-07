@@ -3,16 +3,16 @@ const sequelize = require('../config/database');
 
 const Story = sequelize.define('Story', {
   story_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.BIGINT,
     primaryKey: true,
     autoIncrement: true,
   },
   child_profile_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.BIGINT,
     allowNull: false,
   },
   character_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.BIGINT,
     allowNull: false,
   },
   title: {

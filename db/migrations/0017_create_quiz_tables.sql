@@ -2,7 +2,7 @@ SET @exist1 := (SELECT COUNT(*) FROM information_schema.tables WHERE table_schem
 SET @sql1 := IF(@exist1 = 0,
   'CREATE TABLE quiz_sets (
     quiz_set_id INT AUTO_INCREMENT PRIMARY KEY,
-    story_id INT NOT NULL,
+    story_id BIGINT NOT NULL,
     source_type VARCHAR(20) NOT NULL DEFAULT ''story'',
     status VARCHAR(20) NOT NULL DEFAULT ''pending'',
     generated_at DATETIME NULL,

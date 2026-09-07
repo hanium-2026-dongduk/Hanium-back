@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS `stories` (
 
 CREATE TABLE IF NOT EXISTS `story_pages` (
   `story_page_id` INT AUTO_INCREMENT PRIMARY KEY,
-  `story_id` INT NOT NULL,
+  `story_id` BIGINT NOT NULL,
   `page_number` INT NOT NULL,
   `content` TEXT NOT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

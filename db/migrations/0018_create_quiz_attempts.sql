@@ -6,7 +6,7 @@ SET @exist := (
 SET @sql := IF(@exist = 0,
   'CREATE TABLE quiz_attempts (
     quiz_attempt_id INT AUTO_INCREMENT PRIMARY KEY,
-    child_profile_id INT NOT NULL,
+    child_profile_id BIGINT NOT NULL,
     quiz_set_id INT NOT NULL,
     total_questions INT NOT NULL,
     correct_count INT NOT NULL,
