@@ -53,7 +53,7 @@ async function generateStoryImage(imagePrompt) {
     return `/images/${fileName}`;
   } catch (error) {
     console.error('[Gemini Image API Error]:', error);
-    throw new Error('이미지 생성 실패');
+    throw new Error('이미지 생성 실패', { cause: error });
   }
 }
 

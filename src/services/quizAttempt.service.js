@@ -2,9 +2,9 @@ const { QuizAttempt, QuizQuestion, QuizOption } = require('../models');
 const childService = require('./child.service');
 const rewardService = require('./reward.service');
 const missionService = require('./mission.service'); // A의 Week3 산출물
+const { withTransaction } = require('../utils/dbRetry');
 
-// 수정 (A의 PR #20 merge 전까지 임시)
-// const badgeService = require('./badge.service'); // TODO: A의 PR #20(배지) merge 후 활성화const { withTransaction } = require('../utils/dbRetry');
+// const badgeService = require('./badge.service'); // TODO: A의 PR #20(배지) merge 후 활성화
 
 const POINTS_PER_CORRECT_ANSWER = 5; // 임시값, 기획 확정 필요
 

@@ -30,7 +30,7 @@ async function generateStoryText(prompt) {
     });
   } catch (error) {
     console.error('[Gemini API Error]:', error);
-    throw new Error('스토리 텍스트 생성 실패');
+    throw new Error('스토리 텍스트 생성 실패', { cause: error });
   }
 }
 

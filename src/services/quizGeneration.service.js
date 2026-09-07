@@ -127,7 +127,7 @@ async function generateFromStory(childProfileId, storyId) {
   } catch (err) {
     quizSet.status = 'failed';
     await quizSet.save();
-    const error = new Error('퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
+    const error = new Error('퀴즈 생성에 실패했습니다. 다시 시도해주세요.', { cause: err });
     error.statusCode = 502;
     throw error;
   }

@@ -66,7 +66,7 @@ async function generateAudio(text) {
     return `/audio/${fileName}`;
   } catch (error) {
     console.error('[Gemini TTS API Error]:', error);
-    throw new Error('TTS 음성 생성 실패');
+    throw new Error('TTS 음성 생성 실패', { cause: error });
   }
 }
 
