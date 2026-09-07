@@ -76,4 +76,51 @@ async function deleteStory(childProfileId, storyId) {
   return { deleted: true };
 }
 
-module.exports = { listStories, deleteStory };
+/**
+ * 동화 공개/비공개 설정 변경 (소유권 확인 포함)
+ * @param {number} childProfileId
+ * @param {number} storyId
+ * @param {boolean} isPublic
+ */
+async function togglePublic(childProfileId, storyId, isPublic) {
+  const [result] = await pool.execute(
+    `UPDATE stories SET is_public = ? WHERE story_id = ? AND child_profile_id = ?`,
+    [isPublic ? 1 : 0, storyId, childProfileId]
+  );
+
+  if (result.affectedRows === 0) {
+    const error = new Error('동화를 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return { storyId: Number(storyId), isPublic: !!isPublic };
+}
+
+/**
+ * 공개 동화 탐색 — 자녀 소유권 검증 없이 전체 공개 동화를 페이지네이션 조회.
+ * child_profile_id는 다른 아이 정보 노출 방지를 위해 응답에서 제외한다.
+ * @param {object} options
+ * @param {number} [options.page=1]
+ * @param {number} [options.limit=20]
+ */
+async function exploreStories({ page = 1, limit = 20 } = {}) {
+  const offset = (page - 1) * limit;
+
+  const [rows] = await pool.execute(
+    `SELECT story_id, title, created_at FROM stories WHERE is_public = TRUE
+     ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [limit, offset]
+  );
+
+  const [[{ totalCount }]] = await pool.execute(
+    `SELECT COUNT(*) AS totalCount FROM stories WHERE is_public = TRUE`
+  );
+
+  return {
+    items: rows.map((r) => ({ storyId: r.story_id, title: r.title, createdAt: r.created_at })),
+    pagination: { page, limit, totalCount, totalPages: Math.max(1, Math.ceil(totalCount / limit)) },
+  };
+}
+
+module.exports = { listStories, deleteStory, togglePublic, exploreStories };
