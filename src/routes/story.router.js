@@ -9,6 +9,7 @@ const { authenticate } = require('../middlewares/auth');
 const childService = require('../services/child.service');
 const storyLibraryController = require('../controllers/storyLibrary.controller');
 const response = require('../utils/response');
+const missionService = require('../services/mission.service');
 
 // 1. 동화 생성 및 트랜잭션 저장 API (POST /api/stories)
 router.post('/', authenticate, async (req, res, next) => {
@@ -81,7 +82,6 @@ router.get('/:id', authenticate, async (req, res, next) => {
     if (!childProfileId) {
       return response.error(res, 400, 'child_profile_id 쿼리 파라미터가 필요합니다.');
     }
-    // 소유권 검증
     await childService.getById(req.user.user_id, childProfileId);
 
     const [storyRows] = await pool.execute(
@@ -98,6 +98,17 @@ router.get('/:id', authenticate, async (req, res, next) => {
     if (storyRows.length === 0) {
       return response.error(res, 404, '동화를 찾을 수 없습니다.');
     }
+
+    // 미션 연동 (Week3 A 설계문서 6절 계약): 조회 성공 시 story_read 이벤트 기록.
+    // 읽기 API 자체를 막으면 안 되므로 best-effort로 처리 — 실패해도 조회 응답에는
+    // 영향을 주지 않는다.
+    missionService
+      .recordProgress({
+        childProfileId,
+        eventType: 'story_read',
+        eventId: `story_read:${id}:${childProfileId}`,
+      })
+      .catch((err) => console.error('[mission] story_read 기록 실패:', err.message));
 
     return response.success(res, 200, '동화 상세를 조회했습니다.', {
       storyId: storyRows[0].story_id,
