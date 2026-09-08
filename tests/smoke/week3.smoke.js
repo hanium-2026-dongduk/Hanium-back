@@ -69,6 +69,7 @@ async function main() {
     DailyMission,
     RewardWallet,
     RewardTransaction,
+    ChildBadge,
   } = require('../../src/models');
   const app = require('../../src/app');
   const rewardService = require('../../src/services/reward.service');
@@ -190,6 +191,21 @@ async function main() {
 
     const created = responses.filter((r) => r.status === 201);
     assert.strictEqual(created.length, 1, `201 응답이 ${created.length}건입니다 (정확히 1건이어야 함).`);
+
+    // 배지 판정도 5건이 동시에 돈다. 최종 상태가 "정확히 한 번 수여"인지 확인한다.
+    // (동시 INSERT 충돌을 삼키는지 자체는 badge.service 유닛 테스트가 본다 —
+    //  여기서는 어느 한쪽이 성공하므로 최종 상태만으로는 구분되지 않는다)
+    const badges = await ChildBadge.findAll({ where: { child_profile_id: childConcurrent } });
+    const codes = badges.map((b) => b.badge_code);
+    assert.ok(
+      codes.includes('attendance_first'),
+      `동시 요청 후 attendance_first 배지가 없습니다: ${JSON.stringify(codes)}`
+    );
+    assert.strictEqual(
+      codes.length,
+      new Set(codes).size,
+      `배지가 중복 수여되었습니다: ${JSON.stringify(codes)}`
+    );
   });
 
   await step('연속 출석 마일스톤(3일)에 도달하면 보너스가 함께 지급된다', async () => {

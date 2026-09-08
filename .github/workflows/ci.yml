@@ -1,0 +1,97 @@
+name: CI
+
+# PR을 열 때와 main에 푸시될 때 돈다.
+# 리뷰어가 "테스트 통과하나?"를 직접 받아서 돌려보지 않아도 되도록 하는 것이 목적이다.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 같은 PR에 연달아 푸시하면 이전 실행을 취소한다(러너 시간 절약).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 목(mock) 기반이라 DB 없이 빠르게 돈다. 대부분의 실수는 여기서 걸린다.
+  lint-and-test:
+    name: 린트 + 유닛/통합 테스트
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # package-lock.json 기준으로 정확히 설치한다(npm install과 달리 lock을 수정하지 않음).
+      - run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Jest
+        run: npm test
+
+  # 실제 MySQL에 붙어 라우트 → 서비스 → 쿼리를 end-to-end로 확인한다.
+  # 목으로는 못 잡는 것들(동시성, FK CASCADE, 마이그레이션 SQL 문법)이 여기서 걸린다.
+  smoke:
+    name: 스모크 (실제 MySQL)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        # 로컬 검증과 같은 메이저 버전. 마이그레이션 0003이 MySQL 8.0+ 문법을 쓴다.
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hanium_smoke
+        ports:
+          - 3306:3306
+        # 헬스체크가 통과해야 다음 스텝이 시작된다. 없으면 아직 초기화 중인 MySQL에
+        # 붙으려다 실패한다.
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: hanium_smoke
+      # 스모크 전용 값. 실제 배포 시크릿과 무관하다.
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      # 메일은 스크립트가 스텁으로 대체하므로 실제로 발송되지 않는다.
+      MAIL_USER: ci@example.com
+      MAIL_PASSWORD: ci
+      MAIL_FROM: ci@example.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # 마이그레이션 SQL 자체를 먼저 본다. 구버전 스키마에 적용 가능한지, idempotent한지
+      # 확인하므로 다른 스모크보다 앞에 둔다. (DB_NAME을 스스로 고정해 써서 아래와 섞이지 않는다)
+      - name: 마이그레이션 스모크
+        run: npm run smoke:migration
+
+      # 아래 셋은 같은 DB에 sync({force:true})를 돌리므로 반드시 순차로 실행한다.
+      - name: Week1 스모크 (인증)
+        run: npm run smoke
+
+      - name: Week2 스모크 (프로필·PIN·사용시간)
+        run: npm run smoke:week2
+
+      - name: Week3 스모크 (출석·미션·리워드·배지)
+        run: npm run smoke:week3

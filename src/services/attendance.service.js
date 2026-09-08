@@ -3,6 +3,7 @@ const { AttendanceLog } = require('../models');
 const childService = require('./child.service');
 const rewardService = require('./reward.service');
 const missionService = require('./mission.service');
+const badgeService = require('./badge.service');
 const { runWithDeadlockRetry } = require('../utils/dbRetry');
 const { getStreakBonusPoints } = require('../config/streakBonuses');
 const {
@@ -90,7 +91,7 @@ const checkIn = async (userId, childProfileId) => {
 
   // checkIn은 언제나 최상위 트랜잭션이다 — 외부 트랜잭션을 받지 않으므로(설계 문서 5-3절
   // 시그니처) 데드락 재시도를 여기서 책임진다.
-  return runWithDeadlockRetry(async (t) => {
+  const result = await runWithDeadlockRetry(async (t) => {
     const { created } = await createAttendanceLogIfAbsent(profile.child_profile_id, attendanceDate, t);
 
     if (!created) {
@@ -138,6 +139,13 @@ const checkIn = async (userId, childProfileId) => {
       pointsEarned: missionPoints + bonusAdded,
     };
   });
+
+  // 출석 일수·연속일·포인트가 모두 확정된 뒤에 배지를 판정한다.
+  // 트랜잭션 **밖**에서 부르는 이유: 배지는 부가 기능이라 판정이 실패해도 출석 자체를
+  // 되돌리면 안 된다. 이번에 놓쳐도 다음 이벤트 때 다시 재므로 누락되지 않는다.
+  const badgesAwarded = await badgeService.evaluateQuietly(profile.child_profile_id);
+
+  return { ...result, badgesAwarded };
 };
 
 /**

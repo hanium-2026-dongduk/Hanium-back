@@ -14,6 +14,13 @@ module.exports = [
         process: 'readonly',
         console: 'readonly',
         __dirname: 'readonly',
+        // Node 내장 타이머. 종료 처리(src/server.js)와 테스트에서 쓴다.
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setImmediate: 'readonly',
+        Buffer: 'readonly',
       },
     },
     rules: {
