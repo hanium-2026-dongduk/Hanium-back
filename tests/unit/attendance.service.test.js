@@ -18,10 +18,16 @@ jest.mock('../../src/services/mission.service', () => ({
   recordProgress: jest.fn(),
 }));
 
+// 배지는 출석 트랜잭션 밖에서 도는 부가 기능이라 여기서는 호출 여부만 본다.
+jest.mock('../../src/services/badge.service', () => ({
+  evaluateQuietly: jest.fn().mockResolvedValue([]),
+}));
+
 const { AttendanceLog } = require('../../src/models');
 const childService = require('../../src/services/child.service');
 const rewardService = require('../../src/services/reward.service');
 const missionService = require('../../src/services/mission.service');
+const badgeService = require('../../src/services/badge.service');
 const attendanceService = require('../../src/services/attendance.service');
 const { getSeoulDateString, addDays } = require('../../src/utils/dateUtils');
 
@@ -79,6 +85,36 @@ describe('attendance.service', () => {
         streakDays: 1,
         pointsEarned: 10,
       });
+    });
+
+    test('출석이 확정된 뒤 배지를 판정하고 결과를 함께 돌려준다', async () => {
+      mockOwnedProfile();
+      AttendanceLog.findOne.mockResolvedValue(null);
+      AttendanceLog.create.mockResolvedValue({});
+      mockMissionReward(10);
+      rewardService.getOrCreateWallet.mockResolvedValue(buildWallet());
+      badgeService.evaluateQuietly.mockResolvedValue(['attendance_first']);
+
+      const result = await attendanceService.checkIn(1, 1);
+
+      expect(badgeService.evaluateQuietly).toHaveBeenCalledWith(1);
+      expect(result.badgesAwarded).toEqual(['attendance_first']);
+    });
+
+    test('배지 판정이 실패해도 출석 자체는 성공한다', async () => {
+      // evaluateQuietly가 예외를 삼키는 계약이라, 여기서는 빈 결과만 와도 출석은 정상이어야 한다.
+      mockOwnedProfile();
+      AttendanceLog.findOne.mockResolvedValue(null);
+      AttendanceLog.create.mockResolvedValue({});
+      mockMissionReward(10);
+      rewardService.getOrCreateWallet.mockResolvedValue(buildWallet());
+      badgeService.evaluateQuietly.mockResolvedValue([]);
+
+      const result = await attendanceService.checkIn(1, 1);
+
+      expect(result.alreadyChecked).toBe(false);
+      expect(result.pointsEarned).toBe(10);
+      expect(result.badgesAwarded).toEqual([]);
     });
 
     test('출석 포인트는 직접 지급하지 않고 attendance 미션을 통해 지급한다', async () => {

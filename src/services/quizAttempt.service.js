@@ -4,7 +4,7 @@ const rewardService = require('./reward.service');
 const missionService = require('./mission.service'); // A의 Week3 산출물
 const { withTransaction } = require('../utils/dbRetry');
 
-// const badgeService = require('./badge.service'); // TODO: A의 PR #20(배지) merge 후 활성화
+const badgeService = require('./badge.service');
 
 const POINTS_PER_CORRECT_ANSWER = 5; // 임시값, 기획 확정 필요
 
@@ -89,9 +89,9 @@ async function submitAttempt({ userId, childProfileId, quizSetId, answers }) {
   // 배지 판정은 트랜잭션 밖, 커밋 후 호출 (A 문서: "트랜잭션 안에서 부르지 마세요 —
   // 배지 판정 실패가 본래 동작을 롤백시킵니다"). 실패해도 예외를 삼키고 [] 반환.
  
-  // 수정 (임시)
-  // const badgesAwarded = await badgeService.evaluateQuietly(childProfileId); // TODO: 배지 PR merge 후 활성화
-return { ...result, badgesAwarded: [] };
+  
+const badgesAwarded = await badgeService.evaluateQuietly(childProfileId);
+return { ...result, badgesAwarded };
 }
 
 async function listAttempts(userId, childProfileId, { page = 1, limit = 20 } = {}) {
