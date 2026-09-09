@@ -16,22 +16,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use('/api', routes);
-app.use(notFound);
-app.use(errorHandler);
-
+// 정적 파일은 notFound보다 반드시 앞에 위치해야 한다 —
+// 그렇지 않으면 /audio, /images 요청이 notFound에 먼저 잡혀 항상 404가 된다.
 app.use('/audio', express.static(path.join(__dirname, 'public/audio')));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
+app.use('/api', routes);
+
+app.use(notFound);
+app.use(errorHandler);
+
 module.exports = app;
-
-// 라우터 등록
-const characterRouter = require('./routes/character.router');
-const storySettingRouter = require('./routes/storySetting.router');
-
-app.use('/api/characters', characterRouter);
-app.use('/api/story-settings', storySettingRouter);
-
-app.listen(3000, () => {
-  console.log('🚀 Server running on http://localhost:3000');
-});
