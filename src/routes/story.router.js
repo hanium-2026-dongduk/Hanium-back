@@ -3,13 +3,13 @@ const router = express.Router();
 const pool = require('../config/db');
 const { generateStoryPipeline } = require('../services/storyGenerator');
 const { saveStoryWithTransaction } = require('../services/story.service');
-const characterRouter = require('./character.router');
 const storySettingRouter = require('./storySetting.router');
 const { authenticate } = require('../middlewares/auth');
 const childService = require('../services/child.service');
 const storyLibraryController = require('../controllers/storyLibrary.controller');
 const response = require('../utils/response');
 const missionService = require('../services/mission.service');
+const { Character, StoryReadLog } = require('../models');
 
 // 1. 동화 생성 및 트랜잭션 저장 API (POST /api/stories)
 router.post('/', authenticate, async (req, res, next) => {
@@ -26,9 +26,9 @@ router.post('/', authenticate, async (req, res, next) => {
       return response.error(res, 400, 'characterId와 배경/사건 정보(선택 또는 직접입력)가 필요합니다.');
     }
 
-    const character = characterRouter.characters?.find(c => c.id === Number(characterId));
+    const character = await Character.findByPk(characterId);
     if (!character) {
-      return response.error(res, 404, '캐릭터를 찾을 수 없습니다.');
+    return response.error(res, 404, '캐릭터를 찾을 수 없습니다.');
     }
 
     const resolvedBackground = background || storySettingRouter.presets?.backgrounds.find(b => b.id === backgroundId)?.name;
@@ -85,15 +85,15 @@ router.get('/:id', authenticate, async (req, res, next) => {
     await childService.getById(req.user.user_id, childProfileId);
 
     const [storyRows] = await pool.execute(
-      `SELECT s.story_id, s.title, sp.page_number, sp.content, spi.image_url, spt.audio_url
-       FROM stories s
-       JOIN story_pages sp ON s.story_id = sp.story_id
-       LEFT JOIN story_page_illustrations spi ON sp.story_page_id = spi.story_page_id
-       LEFT JOIN story_page_tts spt ON sp.story_page_id = spt.story_page_id
-       WHERE s.story_id = ? AND s.child_profile_id = ?
-       ORDER BY sp.page_number ASC`,
-      [id, childProfileId]
-    );
+  `SELECT s.story_id, s.title, s.child_profile_id, sp.page_number, sp.content, spi.image_url, spt.audio_url
+   FROM stories s
+   JOIN story_pages sp ON s.story_id = sp.story_id
+   LEFT JOIN story_page_illustrations spi ON sp.story_page_id = spi.story_page_id
+   LEFT JOIN story_page_tts spt ON sp.story_page_id = spt.story_page_id
+   WHERE s.story_id = ? AND (s.child_profile_id = ? OR s.is_public = TRUE)
+   ORDER BY sp.page_number ASC`,
+  [id, childProfileId]
+);
 
     if (storyRows.length === 0) {
       return response.error(res, 404, '동화를 찾을 수 없습니다.');
@@ -102,13 +102,21 @@ router.get('/:id', authenticate, async (req, res, next) => {
     // 미션 연동 (Week3 A 설계문서 6절 계약): 조회 성공 시 story_read 이벤트 기록.
     // 읽기 API 자체를 막으면 안 되므로 best-effort로 처리 — 실패해도 조회 응답에는
     // 영향을 주지 않는다.
-    missionService
-      .recordProgress({
+    StoryReadLog.findOrCreate({
+    where: { child_profile_id: childProfileId, story_id: id },
+    defaults: { created_at: new Date() },
+    })
+  .then(([, created]) => {
+    if (created) {
+      // 이 자녀가 이 동화를 처음 읽은 경우에만 미션 진행도 반영
+      return missionService.recordProgress({
         childProfileId,
         eventType: 'story_read',
         eventId: `story_read:${id}:${childProfileId}`,
-      })
-      .catch((err) => console.error('[mission] story_read 기록 실패:', err.message));
+      });
+    }
+  })
+  .catch((err) => console.error('[mission] story_read 기록 실패:', err.message));
 
     return response.success(res, 200, '동화 상세를 조회했습니다.', {
       storyId: storyRows[0].story_id,

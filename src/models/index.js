@@ -22,6 +22,7 @@ const RewardTransaction = require('./rewardTransaction.model');
 const QuizAttempt = require('./quizAttempt.model');
 const ChildBadge = require('./childBadge.model');
 const StickerSend = require('./stickerSend.model');
+const StoryReadLog = require('./storyReadLog.model');
 
 // 동화 생성 관련 관계
 Character.hasMany(Story, { foreignKey: 'character_id', onDelete: 'RESTRICT' });
@@ -117,6 +118,13 @@ StickerSend.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 User.hasMany(StickerSend, { foreignKey: 'sender_user_id', onDelete: 'RESTRICT' });
 StickerSend.belongsTo(User, { foreignKey: 'sender_user_id', as: 'sender' });
 
+ChildProfile.hasMany(StoryReadLog, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
+StoryReadLog.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+
+Story.hasMany(StoryReadLog, { foreignKey: 'story_id', onDelete: 'CASCADE' });
+StoryReadLog.belongsTo(Story, { foreignKey: 'story_id' });
+
+
 const db = {
   sequelize,
   Character,
@@ -142,6 +150,7 @@ const db = {
   QuizAttempt,
   ChildBadge,
   StickerSend,
+  StoryReadLog,
 };
 
 module.exports = db;
