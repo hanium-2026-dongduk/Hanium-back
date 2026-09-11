@@ -6,7 +6,7 @@ SET @exist := (
 SET @sql := IF(@exist = 0,
   'CREATE TABLE vocabulary_entries (
     vocabulary_entry_id INT AUTO_INCREMENT PRIMARY KEY,
-    child_profile_id INT NOT NULL,
+    child_profile_id BIGINT NOT NULL,
     story_id BIGINT NULL,
     english_word VARCHAR(100) NOT NULL,
     korean_meaning VARCHAR(255) NOT NULL,

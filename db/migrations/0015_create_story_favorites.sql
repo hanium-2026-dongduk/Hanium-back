@@ -7,7 +7,7 @@ SET @exist := (
 SET @sql := IF(@exist = 0,
   'CREATE TABLE story_favorites (
     story_favorite_id INT AUTO_INCREMENT PRIMARY KEY,
-    child_profile_id INT NOT NULL,
+    child_profile_id BIGINT NOT NULL,
     story_id BIGINT NOT NULL,
     created_at DATETIME NOT NULL,
     UNIQUE KEY uq_child_story (child_profile_id, story_id),
