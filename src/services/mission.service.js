@@ -4,6 +4,7 @@ const rewardService = require('./reward.service');
 const { withTransaction } = require('../utils/dbRetry');
 const { MISSION_CATALOG, MISSION_TYPES, getMissionDefinition } = require('../config/missionCatalog');
 const { getSeoulDateString } = require('../utils/dateUtils');
+const badgeService = require('./badge.service');
 
 const badRequest = (message) => {
   const error = new Error(message);
@@ -211,10 +212,31 @@ const getTodayProgress = async (userId, childProfileId) => {
   return { missionDate, missions: missions.map(toMissionView) };
 };
 
+/**
+ * 프론트의 단어 클릭 이벤트를 오늘 미션에 기록한다.
+ * HTTP 경계에서 바로 노출되는 함수이므로 자녀 소유권을 먼저 검증한다.
+ */
+const recordWordClick = async (userId, childProfileId) => {
+  const profile = await childService.getById(userId, childProfileId);
+  const result = await recordProgress({
+    childProfileId: profile.child_profile_id,
+    eventType: 'word_clicked',
+  });
+
+  const badgesAwarded = await badgeService.evaluateQuietly(profile.child_profile_id);
+
+  return {
+    mission: toMissionView(result.mission),
+    pointsEarned: result.reward?.pointsAdded ?? 0,
+    badgesAwarded,
+  };
+};
+
 module.exports = {
   recordProgress,
   ensureMissions,
   getCatalog,
   getTodayProgress,
+  recordWordClick,
   toMissionView,
 };
