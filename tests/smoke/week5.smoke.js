@@ -169,6 +169,7 @@ async function main() {
 
   console.log('✅ Week5 콘텐츠 전체 흐름 스모크 완료');
   await sequelize.close();
+  process.exit(0);
 }
 
 main().catch((err) => {
