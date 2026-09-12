@@ -2,6 +2,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const childService = require('../services/child.service');
 const quizGenerationService = require('../services/quizGeneration.service');
 const quizAttemptService = require('../services/quizAttempt.service');
+const quizQueryService = require('../services/quizQuery.service');
 const response = require('../utils/response');
 
 const generateValidation = [
@@ -19,6 +20,28 @@ const generate = async (req, res, next) => {
 
     const result = await quizGenerationService.generateFromStory(child_profile_id, story_id);
     return response.success(res, 201, '퀴즈가 생성되었습니다.', result);
+  } catch (err) {
+    if (err.statusCode) return response.error(res, err.statusCode, err.message);
+    next(err);
+  }
+};
+
+const detailValidation = [
+  param('quizSetId').isInt({ min: 1 }).toInt(),
+  query('child_profile_id').isInt({ min: 1 }).toInt(),
+];
+
+const detail = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
+
+    const result = await quizQueryService.getQuiz(
+      req.user.user_id,
+      Number(req.query.child_profile_id),
+      req.params.quizSetId
+    );
+    return response.success(res, 200, '퀴즈를 조회했습니다.', result);
   } catch (err) {
     if (err.statusCode) return response.error(res, err.statusCode, err.message);
     next(err);
@@ -91,6 +114,7 @@ const attemptDetail = async (req, res, next) => {
 
 module.exports = {
   generateValidation, generate,
+  detailValidation, detail,
   submitValidation, submit,
   listAttemptsValidation, listAttempts,
   attemptDetailValidation, attemptDetail,

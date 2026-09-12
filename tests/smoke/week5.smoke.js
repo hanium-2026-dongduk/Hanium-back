@@ -41,7 +41,8 @@ async function run() {
   await client.post('/favorites', { child_profile_id: CHILD_PROFILE_ID, story_id: storyId });
   console.log('  → 등록 완료');
 
-  console.log('5. 단어장 저장 (word_clicked 미션 트리거)...');
+  console.log('5. 단어 클릭 미션 기록 후 단어장 저장...');
+  await client.post('/missions/word-click', { child_profile_id: CHILD_PROFILE_ID });
   await client.post('/vocabulary', {
     child_profile_id: CHILD_PROFILE_ID,
     story_id: storyId,
@@ -56,7 +57,9 @@ async function run() {
   console.log('  → quizSetId:', quizSetId, '문항 수:', quizRes.data.data.questionCount);
 
   console.log('7. 퀴즈 조회 후 채점 제출 (quiz_answered 미션+포인트 트리거)...');
-  const quizDetailRes = await client.get(`/quizzes/${quizSetId}`);
+  const quizDetailRes = await client.get(`/quizzes/${quizSetId}`, {
+    params: { child_profile_id: CHILD_PROFILE_ID },
+  });
   const questions = quizDetailRes.data.data.questions;
   const answers = questions.map((q) => ({ questionId: q.questionId, selectedOptionId: q.options[0].optionId }));
 
