@@ -95,3 +95,6 @@ jobs:
 
       - name: Week3 스모크 (출석·미션·리워드·배지)
         run: npm run smoke:week3
+
+      - name: Week5 스모크 (콘텐츠 전체 흐름)
+        run: npm run smoke:week5
