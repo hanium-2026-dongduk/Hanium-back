@@ -21,6 +21,7 @@ const MOUNTS = {
   '/rewards': 'reward.route',
   '/badges': 'badge.route',
   '/stickers': 'sticker.route',
+  '/quizzes': 'quiz.route',
 };
 
 /**
