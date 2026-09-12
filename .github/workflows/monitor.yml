@@ -1,0 +1,105 @@
+name: Production Monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-monitor
+  cancel-in-progress: true
+
+jobs:
+  monitor:
+    name: HTTPS 상태 + EC2 디스크
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      HEALTH_URL: https://magicbook-54-252-159-59.nip.io/api/health
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+      EC2_SSH_PORT: ${{ secrets.EC2_SSH_PORT || '22' }}
+
+    steps:
+      - name: HTTPS 헬스체크
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --retry 2 --max-time 10 "$HEALTH_URL")"
+          [[ "$response" == '{"status":"ok"}' ]] || {
+            echo "::error::예상하지 못한 헬스체크 응답: $response"
+            exit 1
+          }
+
+      - name: SSH 설정
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$EC2_SSH_KEY" > "$RUNNER_TEMP/ssh/deploy_key"
+          chmod 600 "$RUNNER_TEMP/ssh/deploy_key"
+          printf '%s\n' "$EC2_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/known_hosts"
+
+      - name: EC2 루트 디스크 사용량 확인
+        shell: bash
+        run: |
+          set -euo pipefail
+          usage="$(ssh \
+            -i "$RUNNER_TEMP/ssh/deploy_key" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            -o ConnectTimeout=15 \
+            -p "$EC2_SSH_PORT" \
+            "$EC2_USER@$EC2_HOST" \
+            "df -P / | awk 'NR == 2 { gsub(/%/, \"\", \$5); print \$5 }'")"
+          [[ "$usage" =~ ^[0-9]+$ ]] || {
+            echo "::error::디스크 사용량을 읽지 못했습니다: $usage"
+            exit 1
+          }
+          echo "루트 디스크 사용량: ${usage}%"
+          (( usage < 80 )) || {
+            echo "::error::루트 디스크 사용량이 임계값(80%) 이상입니다: ${usage}%"
+            exit 1
+          }
+
+      - name: 실패 이슈 생성
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search '"🚨 운영 API 장애 감지" in:title' --json number --jq '.[0].number // empty')"
+          if [[ -z "$existing" ]]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title '🚨 운영 API 장애 감지' \
+              --body "운영 모니터링이 실패했습니다. 실행 로그: $RUN_URL"
+          else
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
+              --body "운영 장애가 계속 감지됩니다. 실행 로그: $RUN_URL"
+          fi
+
+      - name: 복구 이슈 종료
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search '"🚨 운영 API 장애 감지" in:title' --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing" ]]; then
+            gh issue close "$existing" --repo "$GITHUB_REPOSITORY" \
+              --comment "운영 헬스체크와 디스크 검사가 복구됐습니다. 확인 실행: $RUN_URL"
+          fi
