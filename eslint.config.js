@@ -14,6 +14,9 @@ module.exports = [
         process: 'readonly',
         console: 'readonly',
         __dirname: 'readonly',
+        __filename: 'readonly',
+        exports: 'writable',
+        global: 'readonly',
         // Node 내장 타이머. 종료 처리(src/server.js)와 테스트에서 쓴다.
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
@@ -33,6 +36,7 @@ module.exports = [
       globals: {
         describe: 'readonly',
         test: 'readonly',
+        it: 'readonly',
         expect: 'readonly',
         jest: 'readonly',
         beforeEach: 'readonly',
