@@ -1,6 +1,7 @@
 const { VocabularyEntry } = require('../models');
 const pool = require('../config/db');
 const childService = require('./child.service');
+const badgeService = require('./badge.service');
 
 /**
  * saveEntry에 storyId가 오면 실제로 이 childProfileId 소유의 동화인지 확인한다.
@@ -33,6 +34,9 @@ async function saveEntry(userId, { childProfileId, storyId, englishWord, koreanM
     korean_meaning: koreanMeaning,
     example_sentence: exampleSentence || null,
   });
+
+  // 저장은 이미 완료됐으므로 배지 판정 실패가 단어 저장을 실패로 바꾸지 않게 한다.
+  await badgeService.evaluateQuietly(childProfileId);
 
   return entry;
 }

@@ -17,7 +17,7 @@
 | 조건 자동 판정 + 수여 (`badgeService`) | ✅ 구현 완료 |
 | API 2종 | ✅ 구현 완료 |
 | 출석 → 배지 판정 연동 | ✅ `attendance.service.checkIn`에서 호출 |
-| **동화·퀴즈·단어장 조건 판정** | ⏳ **대기 중 — 개발자 B 테이블이 아직 없음.** 아래 "개발자 B 연동 계약" 참고 |
+| 동화·퀴즈·단어장 조건 판정 | ✅ 구현 완료 |
 | 배지 이름·설명·조건 수치 | ✅ **확정** ([REWARD_POLICY.md](./REWARD_POLICY.md)) |
 
 ---
@@ -147,7 +147,12 @@ GET /api/badges/:childId
 
 별도의 "수여 API"는 없다. **조건이 변할 만한 지점에서 서버가 자동으로 판정한다.**
 
-현재 연동된 지점: `POST /api/attendance/check` (출석 체크)
+현재 연동된 지점:
+
+- `POST /api/attendance/check` — 출석·연속 출석·포인트·레벨·미션 배지
+- `GET /api/stories/:id` — 처음 읽은 동화 수 배지
+- `POST /api/quizzes/.../attempts` — 누적 퀴즈 정답 수 배지
+- `POST /api/vocabulary` — 현재 저장 단어 수 배지
 
 출석 응답에 이번에 새로 받은 배지가 함께 온다.
 
@@ -176,44 +181,7 @@ GET /api/badges/:childId
 
 ---
 
-## 4. 개발자 B 연동 계약
-
-동화·퀴즈·단어장 조건(`story_10`, `quiz_50`, `vocabulary_100`)은 지금 `evaluable: false`라
-목록에만 보이고 판정되지 않는다. 데이터가 준비되면 아래 두 단계로 열린다.
-
-**① 판정기 추가** — `src/services/badgeEvaluators.js`
-
-```js
-/** 읽은 동화 수. */
-const story_read_total = async (childProfileId, { transaction } = {}) => {
-  return StoryRead.count({ where: { child_profile_id: childProfileId }, transaction });
-};
-```
-
-모든 판정기는 같은 시그니처를 지킨다. **현재 수치만 돌려주면 되고**, 조건값과 비교하는
-일은 `badgeService`가 한다(같은 지표를 쓰는 배지가 여러 개라 지표는 타입당 한 번만 잰다).
-
-**② 플래그 켜기** — `src/config/badgeCatalog.js`에서 해당 배지의 `evaluable`을 `true`로.
-
-**③ 이벤트 지점에서 호출** — 동화 읽기·퀴즈 채점을 **커밋한 뒤**에 부른다.
-
-```js
-const badgeService = require('./badge.service');
-
-// ... 동화 읽기 처리 트랜잭션 커밋 후
-const badgesAwarded = await badgeService.evaluateQuietly(childProfileId);
-return { ...result, badgesAwarded };
-```
-
-`evaluateQuietly`는 **실패해도 예외를 던지지 않는다.** 배지는 부가 기능이라 판정이 깨져도
-본래 동작(동화 읽기·퀴즈 채점)을 되돌리면 안 되기 때문이다. 이번에 놓쳐도 다음 이벤트 때
-조건을 다시 재므로 배지가 영영 누락되지는 않는다.
-
-> **트랜잭션 안에서 부르지 말 것.** 배지 판정 실패가 본래 동작을 롤백시킨다.
-
----
-
-## 5. 확정 배지 목록
+## 4. 확정 배지 목록
 
 | badge_code | 이름 | 조건 | 판정 |
 |---|---|---|---|
@@ -225,9 +193,9 @@ return { ...result, badgesAwarded };
 | `points_1000` | 포인트 부자 | 포인트 1000점 | ✅ |
 | `level_5` | 성장하는 아이 | 레벨 5 | ✅ |
 | `mission_10` | 미션 해결사 | 미션 10회 완료 | ✅ |
-| `story_10` | 이야기 친구 | 동화 10편 | ⏳ B 대기 |
-| `quiz_50` | 퀴즈 박사 | 퀴즈 50개 정답 | ⏳ B 대기 |
-| `vocabulary_100` | 단어 부자 | 단어 100개 | ⏳ B 대기 |
+| `story_10` | 이야기 친구 | 동화 10편 | ✅ |
+| `quiz_50` | 퀴즈 박사 | 퀴즈 50개 정답 | ✅ |
+| `vocabulary_100` | 단어 부자 | 단어 100개 | ✅ |
 
 ### 알려진 한계
 

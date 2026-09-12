@@ -12,12 +12,7 @@
  * 이름·설명·조건과 icon_key 계약은 2026-09-12 확정했다.
  * 변경 근거와 운영 원칙은 docs/REWARD_POLICY.md를 참고한다.
  *
- * ## evaluable 플래그
- *
- * 일부 조건(동화/퀴즈/단어장)은 개발자 B의 테이블이 아직 없어 판정할 수 없다.
- * 그런 배지는 `evaluable: false`로 두어 목록에는 보이되 "곧 열려요"로 표시하고,
- * 판정 대상에서는 제외한다. 조건 데이터가 준비되면 `evaluate.js`에 판정기를 추가하고
- * 이 플래그만 true로 바꾸면 된다.
+ * `evaluable`은 대응 데이터와 판정기가 준비됐는지를 나타낸다. 현재 11종 모두 판정 가능하다.
  *
  * **badge_code는 절대 바꾸지 말 것** — 이미 수여된 child_badges 행의 의미가 달라진다.
  * 배지를 없앨 때도 카탈로그에서 지우기보다 새 코드를 추가하는 쪽을 고려한다
@@ -113,14 +108,14 @@ const BADGE_CATALOG = [
     evaluable: true,
   },
 
-  // ── 동화·퀴즈·단어장 계열 (개발자 B 데이터 대기 — "곧 열려요") ──
+  // ── 동화·퀴즈·단어장 계열 ──
   {
     badge_code: 'story_10',
     name: '이야기 친구',
     description: '동화를 10편 읽었어요',
     icon_key: 'book',
     condition: { type: 'story_read_total', value: 10 },
-    evaluable: false,
+    evaluable: true,
   },
   {
     badge_code: 'quiz_50',
@@ -128,7 +123,7 @@ const BADGE_CATALOG = [
     description: '퀴즈를 50개 맞혔어요',
     icon_key: 'brain',
     condition: { type: 'quiz_correct_total', value: 50 },
-    evaluable: false,
+    evaluable: true,
   },
   {
     badge_code: 'vocabulary_100',
@@ -136,7 +131,7 @@ const BADGE_CATALOG = [
     description: '단어를 100개 모았어요',
     icon_key: 'pencil',
     condition: { type: 'vocabulary_saved_total', value: 100 },
-    evaluable: false,
+    evaluable: true,
   },
 ];
 
