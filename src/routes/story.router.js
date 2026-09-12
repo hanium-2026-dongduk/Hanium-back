@@ -9,6 +9,7 @@ const childService = require('../services/child.service');
 const storyLibraryController = require('../controllers/storyLibrary.controller');
 const response = require('../utils/response');
 const missionService = require('../services/mission.service');
+const badgeService = require('../services/badge.service');
 const { Character, StoryReadLog } = require('../models');
 
 // 1. 동화 생성 및 트랜잭션 저장 API (POST /api/stories)
@@ -106,17 +107,22 @@ router.get('/:id', authenticate, async (req, res, next) => {
     where: { child_profile_id: childProfileId, story_id: id },
     defaults: { created_at: new Date() },
     })
-  .then(([, created]) => {
+  .then(async ([, created]) => {
     if (created) {
       // 이 자녀가 이 동화를 처음 읽은 경우에만 미션 진행도 반영
-      return missionService.recordProgress({
-        childProfileId,
-        eventType: 'story_read',
-        eventId: `story_read:${id}:${childProfileId}`,
-      });
+      try {
+        await missionService.recordProgress({
+          childProfileId,
+          eventType: 'story_read',
+          eventId: `story_read:${id}:${childProfileId}`,
+        });
+      } catch (err) {
+        console.error('[mission] story_read 기록 실패:', err.message);
+      }
+      await badgeService.evaluateQuietly(childProfileId);
     }
   })
-  .catch((err) => console.error('[mission] story_read 기록 실패:', err.message));
+  .catch((err) => console.error('[activity] story_read 기록 실패:', err.message));
 
     return response.success(res, 200, '동화 상세를 조회했습니다.', {
       storyId: storyRows[0].story_id,
