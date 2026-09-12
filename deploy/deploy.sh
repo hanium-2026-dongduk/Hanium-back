@@ -4,8 +4,8 @@
 # EC2에서 실행한다. 최초 세팅은 deploy/setup-ec2.sh 를 먼저 돌린 뒤다.
 #
 # 사용법:
-#   cd ~/hanium-back && bash deploy/deploy.sh [브랜치]
-#   (기본 브랜치: main)
+#   cd ~/hanium-back && bash deploy/deploy.sh [브랜치|태그|커밋 SHA]
+#   (기본 리비전: main)
 #
 # 하는 일: 코드 받기 → 의존성 설치 → 마이그레이션 → 무중단 재시작 → 헬스체크
 #
@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-BRANCH="${1:-main}"
+REVISION="${1:-main}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="hanium-api"
 
@@ -26,12 +26,19 @@ cd "$APP_DIR"
 
 [[ -f .env ]] || fail ".env 가 없습니다. .env.production.example 을 복사해 채우세요."
 
-log "코드 받기 ($BRANCH)"
-git fetch origin "$BRANCH"
+log "코드 받기 ($REVISION)"
+git fetch origin "$REVISION"
 # 로컬 변경이 있으면 멈춘다 — 서버에서 직접 고친 내용을 조용히 날리지 않기 위해.
 git diff --quiet || fail "커밋되지 않은 변경이 있습니다. 확인 후 다시 실행하세요."
-git checkout "$BRANCH"
-git reset --hard "origin/$BRANCH"
+
+# 브랜치는 추적 브랜치로, 태그나 SHA는 FETCH_HEAD의 detached HEAD로 배포한다.
+# 후자는 장애 시 검증된 커밋으로 즉시 롤백할 때 사용한다.
+if git show-ref --verify --quiet "refs/remotes/origin/$REVISION"; then
+  git checkout "$REVISION"
+  git reset --hard "origin/$REVISION"
+else
+  git checkout --detach FETCH_HEAD
+fi
 
 log "의존성 설치"
 npm ci --omit=dev
