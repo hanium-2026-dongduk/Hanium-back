@@ -133,7 +133,7 @@
 다시 설명:
 
 ```js
-// src/config/missionCatalog.js (예정, 미구현)
+// src/config/missionCatalog.js
 const MISSION_CATALOG = [
   { mission_type: 'attendance',    target_count: 1, reward_points: 10 },
   { mission_type: 'story_read',    target_count: 1, reward_points: 20 },
@@ -141,7 +141,7 @@ const MISSION_CATALOG = [
   { mission_type: 'quiz_answered', target_count: 1, reward_points: 20 },
 ];
 ```
-> 수치는 예시이며 기획 확정 필요(8절).
+> 수치는 2026-09-12 초기 출시 정책으로 확정했다([REWARD_POLICY.md](./REWARD_POLICY.md)).
 
 ### 2-3. `reward_wallets`
 
@@ -286,8 +286,8 @@ function computeLevelFromPoints(points) {
 **근거**: 이 프로젝트는 레벨을 런타임에 관리자가 조정할 UI/필요가 없는 2인 5주 MVP다.
 DB 테이블(옵션 C)은 "값을 배포 없이 바꿀 수 있다"는 이점이 있지만 지금 그 이점을 쓸 주체가
 없고, 테이블 하나(+ CRUD 없음)만 늘어난다. 코드 상수는 리뷰 가능한 PR로 레벨 밸런스를
-관리할 수 있어 오히려 이 단계에 더 적합하다고 판단. 값 자체(임계값 수치)는 기획 확정
-필요(8절).
+관리할 수 있어 오히려 이 단계에 더 적합하다고 판단. 임계값은 2026-09-12 초기 출시
+정책으로 확정했다([REWARD_POLICY.md](./REWARD_POLICY.md)).
 
 ---
 
@@ -520,8 +520,8 @@ return transaction ? run(transaction) : sequelize.transaction(run);
 
 1. **토큰/포인트 완전 통합 여부** (0절) — 기획 확인 필요. AI 생성 비용을 별도 재화로
    과금할 계획이 있다면 지금 분리하는 것이 나중에 재화를 쪼개는 것보다 쉽다.
-2. **미션 카탈로그의 정확한 target_count/reward_points 값** (2-2절) — 예시 수치일 뿐.
-3. **레벨 임계값 수치** (4절) — 예시 배열일 뿐.
+2. ~~**미션 카탈로그의 정확한 target_count/reward_points 값**~~ — 2026-09-12 확정.
+3. ~~**레벨 임계값 수치**~~ — 2026-09-12 확정.
 4. **월간 출석률 분모 정책**(진행 중인 달은 경과일 기준 vs 항상 그 달 전체 일수) — 7-2절
    권장안 확인 필요.
 5. **RW02 "연속 학습일"을 출석 체크만으로 정의할지, 실제 학습 활동(동화/퀴즈)까지 반영할지**

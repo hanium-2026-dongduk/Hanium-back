@@ -15,7 +15,7 @@
 | `sticker_sends` 스키마 | ✅ 마이그레이션 `0013` |
 | 스티커 카탈로그 (`src/config/stickerCatalog.js`) | ✅ 6종 |
 | API 3종 | ✅ 구현 완료 |
-| 스티커 종류·문구 | ⚠️ **예시값 — 기획·디자인 확정 필요** |
+| 스티커 종류·문구와 `icon_key` | ✅ **확정** ([REWARD_POLICY.md](./REWARD_POLICY.md)) |
 
 ---
 
@@ -161,7 +161,7 @@ GET /api/stickers/received/:childId?page=1&limit=20
 
 ---
 
-## 5. 현재 스티커 목록 (기획 확정 전 예시값)
+## 5. 확정 스티커 목록
 
 | sticker_code | 이름 | icon_key |
 |---|---|---|
