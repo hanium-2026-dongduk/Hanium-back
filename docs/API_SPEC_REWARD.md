@@ -18,12 +18,11 @@
 | `missionService` (지연 생성, 진행도, 보상) | ✅ 구현 완료 |
 | `attendanceService` (출석, streak, 마일스톤 보너스) | ✅ 구현 완료 |
 | API 7종 (아래 전부) | ✅ 구현 완료 |
-| **학습 이벤트 → 미션 진행도 연동** | ⏳ **대기 중 — 개발자 B의 동화/퀴즈 라우트가 아직 없음.** 아래 "개발자 B 연동 계약" 참고 |
+| 학습 이벤트 → 미션 진행도 연동 | ✅ 출석·동화·단어 클릭·퀴즈 연동 완료 |
 | 정책 수치(레벨 임계값, 미션 보상, streak 보너스) | ✅ **확정** ([REWARD_POLICY.md](./REWARD_POLICY.md)) |
 
-**즉 현재 실제로 포인트가 쌓이는 경로는 출석뿐이다.** `story_read`/`word_clicked`/`quiz_answered`
-미션은 행이 생성되고 조회도 되지만, 진행도를 올려주는 호출자가 아직 없어 영원히 `pending`에
-머문다. 개발자 B가 `missionService.recordProgress()`를 붙이면 그때부터 동작한다.
+네 미션 모두 실제 이벤트와 연결되어 있다. 단어 클릭은 프론트가 동화 화면에서 단어를 누를
+때 `POST /api/missions/word-click`을 호출해야 진행된다.
 
 ---
 
@@ -229,7 +228,46 @@ GET /api/missions/progress/:childId
 
 ---
 
-## 5. 리워드 조회
+## 5. 단어 클릭 미션 기록
+
+```
+POST /api/missions/word-click
+```
+
+동화 화면에서 아이가 영어 단어를 누를 때마다 호출한다.
+
+```json
+{ "child_profile_id": 1 }
+```
+
+**200 OK**
+
+```json
+{
+  "success": true,
+  "message": "단어 클릭이 기록되었습니다.",
+  "data": {
+    "mission": {
+      "missionType": "word_clicked",
+      "targetCount": 5,
+      "progressCount": 5,
+      "rewardPoints": 15,
+      "status": "rewarded"
+    },
+    "pointsEarned": 15,
+    "badgesAwarded": ["mission_10"]
+  }
+}
+```
+
+목표 5회에 도달한 뒤 같은 날 추가 호출해도 진행도와 포인트는 늘지 않는다. 네트워크 재시도로
+개별 클릭 진행도가 한 번 더 오를 수 있지만, 목표치에서 잘리고 보상은 미션당 한 번만 지급된다.
+
+**400** · **401** · **404**
+
+---
+
+## 6. 리워드 조회
 
 ```
 GET /api/rewards/:childId
@@ -274,7 +312,7 @@ GET /api/rewards/:childId
 
 ---
 
-## 6. 보유 포인트 (메인 화면용)
+## 7. 보유 포인트 (메인 화면용)
 
 ```
 GET /api/rewards/:childId/summary
@@ -298,7 +336,7 @@ GET /api/rewards/:childId/summary
 
 ---
 
-## 7. 포인트 획득 이력
+## 8. 포인트 획득 이력
 
 ```
 GET /api/rewards/:childId/history?page=1&limit=20&reason=&from=&to=
