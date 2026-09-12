@@ -9,7 +9,8 @@
  * `child_badges.badge_code`가 여기의 `badge_code`를 참조한다. FK는 아니며,
  * `daily_missions.mission_type` ↔ `MISSION_CATALOG`와 같은 관계다.
  *
- * ⚠️ 배지 이름·설명·조건 수치는 예시이며 기획 확정이 필요하다.
+ * 이름·설명·조건과 icon_key 계약은 2026-09-12 확정했다.
+ * 변경 근거와 운영 원칙은 docs/REWARD_POLICY.md를 참고한다.
  *
  * ## evaluable 플래그
  *

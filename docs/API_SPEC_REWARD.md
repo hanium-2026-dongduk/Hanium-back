@@ -19,7 +19,7 @@
 | `attendanceService` (출석, streak, 마일스톤 보너스) | ✅ 구현 완료 |
 | API 7종 (아래 전부) | ✅ 구현 완료 |
 | **학습 이벤트 → 미션 진행도 연동** | ⏳ **대기 중 — 개발자 B의 동화/퀴즈 라우트가 아직 없음.** 아래 "개발자 B 연동 계약" 참고 |
-| 정책 수치(레벨 임계값, 미션 보상, streak 보너스) | ⚠️ **예시값 — 기획 확정 필요** |
+| 정책 수치(레벨 임계값, 미션 보상, streak 보너스) | ✅ **확정** ([REWARD_POLICY.md](./REWARD_POLICY.md)) |
 
 **즉 현재 실제로 포인트가 쌓이는 경로는 출석뿐이다.** `story_read`/`word_clicked`/`quiz_answered`
 미션은 행이 생성되고 조회도 되지만, 진행도를 올려주는 호출자가 아직 없어 영원히 `pending`에
@@ -175,7 +175,7 @@ GET /api/missions
 }
 ```
 
-> ⚠️ `targetCount`/`rewardPoints`는 예시값이며 기획 확정이 필요하다.
+> `targetCount`/`rewardPoints`는 초기 출시 정책으로 확정됐다.
 > 카탈로그는 `src/config/missionCatalog.js`의 코드 상수라 변경에 마이그레이션이 필요 없다.
 > 단, 변경은 **이미 생성된 그날의 행에는 소급되지 않는다** — 생성 시점의 값이 행에 복사되기 때문.
 
@@ -264,7 +264,7 @@ GET /api/rewards/:childId
 |---|---|---|---|---|---|---|---|---|---|---|
 | 필요 누적 포인트 | 0 | 100 | 300 | 600 | 1000 | 1500 | 2200 | 3000 | 4000 | 5200 |
 
-> ⚠️ 예시값이며 기획 확정이 필요하다(`src/config/levelThresholds.js`).
+> 초기 출시 정책 확정값이다. 조정 기준은 [REWARD_POLICY.md](./REWARD_POLICY.md)를 참고한다.
 
 레벨은 별도 카운터가 아니라 **현재 포인트로부터 매번 재계산되는 순수 함수**다. 따라서
 포인트와 레벨이 어긋난 상태가 존재할 수 없고, 임계값을 조정하면 기존 사용자의 레벨도
@@ -316,8 +316,8 @@ GET /api/rewards/:childId/history?page=1&limit=20&reason=&from=&to=
 **지급 사유(`reason`)**: `attendance`, `streak_bonus`, `mission_reward`, `story_read`,
 `word_clicked`, `quiz_answered`
 
-> 현재 실제로 기록되는 값은 `mission_reward`와 `streak_bonus`뿐이다. 나머지는 개발자 B가
-> 미션과 별개로 직접 지급할 여지를 남겨둔 계약상의 값이다.
+> 현재 `quiz_answered`는 퀴즈 정답당 5점 지급에도 기록된다. 나머지는 미션과 별개로
+> 직접 지급할 수 있도록 남겨둔 계약상의 값이다.
 
 ### Response
 
@@ -373,7 +373,7 @@ else                      →  streakDays = 1   (연속이 끊겼거나 첫 출�
 |---|---|---|---|---|
 | 보너스 | 20 | 50 | 100 | 300 |
 
-> ⚠️ 예시값이며 기획 확정이 필요하다(`src/config/streakBonuses.js`).
+> 초기 출시 정책 확정값이다. 조정 기준은 [REWARD_POLICY.md](./REWARD_POLICY.md)를 참고한다.
 
 ---
 
