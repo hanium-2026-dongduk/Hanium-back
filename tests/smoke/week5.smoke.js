@@ -15,6 +15,7 @@ require.cache[nodemailerPath] = {
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'smoke-access-secret';
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'smoke-refresh-secret';
+process.env.GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'ci-not-used';
 
 if (!process.env.DB_NAME) {
   console.error('DB_NAME 환경변수가 필요합니다 (스모크 테스트 전용 빈 DB를 지정하세요).');
@@ -23,6 +24,15 @@ if (!process.env.DB_NAME) {
 
 const assert = require('assert');
 const request = require('supertest');
+
+const waitUntil = async (predicate, timeoutMs = 3000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`비동기 후처리가 ${timeoutMs}ms 안에 완료되지 않았습니다.`);
+};
 
 async function main() {
   const {
@@ -80,6 +90,10 @@ async function main() {
     .get(`/api/stories/${story.story_id}?child_profile_id=${childId}`)
     .set(auth);
   assert.strictEqual(detail.status, 200, JSON.stringify(detail.body));
+  // 동화 읽기 로그·미션·배지는 응답을 막지 않는 best-effort 후처리다.
+  await waitUntil(async () => (
+    await StoryReadLog.count({ where: { child_profile_id: childId } })
+  ) === 1);
   assert.strictEqual(await StoryReadLog.count({ where: { child_profile_id: childId } }), 1);
 
   const favorite = await request(app)
