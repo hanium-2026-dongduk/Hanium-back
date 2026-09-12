@@ -176,38 +176,43 @@ GET    /api/stickers/received/:childId
 
 ### 개발자 B (~23개)
 
+> **주의**: 최초 계획 시 path param 중심으로 설계했으나, 실제 구현은 "목록 조회는
+> query param, 단건 조회/조작은 path param" 컨벤션으로 일관되게 통일했습니다
+> (Week3부터 적용). 프론트 연동은 이 문서가 아니라 `/api-docs`(Swagger)를
+> 기준으로 진행해주세요 — 이 목록은 참고용입니다.
+
 ```
 # 캐릭터
 POST   /api/characters
-GET    /api/characters/:childId
+GET    /api/characters
 
 # 동화 생성/관리
-POST   /api/stories/generate
-GET    /api/stories/:childId
-GET    /api/stories/:storyId/detail
-DELETE /api/stories/:storyId
-PUT    /api/stories/:storyId/public
+POST   /api/stories                              (body: characterId, background, mainEvent, childAge, childProfileId)
+GET    /api/stories?child_profile_id=&sort=&favorite=&page=&limit=
+GET    /api/stories/:id?child_profile_id=
+DELETE /api/stories/:storyId?child_profile_id=
+PUT    /api/stories/:storyId/public              (body: child_profile_id, is_public)
 
 # 즐겨찾기
-POST   /api/stories/:storyId/favorite
-DELETE /api/stories/:storyId/favorite
-GET    /api/stories/favorites/:childId
-GET    /api/stories/explore
+POST   /api/favorites                            (body: child_profile_id, story_id)
+DELETE /api/favorites/:storyId?child_profile_id=
+GET    /api/stories?child_profile_id=&favorite=true   (별도 엔드포인트 없이 목록 API에 통합)
+GET    /api/stories/explore?page=&limit=
 
 # 단어장
-POST   /api/vocabulary
-GET    /api/vocabulary/:childId
-DELETE /api/vocabulary/:id
+POST   /api/vocabulary                           (body: child_profile_id, story_id, english_word, korean_meaning)
+GET    /api/vocabulary?child_profile_id=&page=&limit=
+DELETE /api/vocabulary/:id?child_profile_id=
 
 # 퀴즈
-POST   /api/quizzes/generate/:storyId
+POST   /api/quizzes/generate                     (body: child_profile_id, story_id)
 GET    /api/quizzes/:quizSetId
-POST   /api/quizzes/:quizSetId/submit
-GET    /api/quizzes/attempts/:childId
+POST   /api/quizzes/:quizSetId/submit            (body: child_profile_id, answers)
+GET    /api/quizzes/attempts?child_profile_id=&page=&limit=
 GET    /api/quizzes/attempts/:attemptId/detail
 
 # 대시보드 (MN01)
-GET    /api/dashboard/:childId       ← NEW: 핵심 기능 위젯용 요약 데이터
+GET    /api/dashboard/:childId
 ```
 
 ---
