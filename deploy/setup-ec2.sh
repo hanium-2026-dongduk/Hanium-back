@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # EC2 최초 세팅 (Week 4 — 서버 첫 배포).
-# Ubuntu 22.04/24.04 기준. 인스턴스를 새로 만든 뒤 **한 번만** 실행한다.
+# Ubuntu 22.04/24.04 또는 Amazon Linux 2023 기준. 인스턴스를 만든 뒤 **한 번만** 실행한다.
 #
 # 사용법:
 #   ssh -i <키>.pem ubuntu@<EC2_퍼블릭_IP>
@@ -20,27 +20,50 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 log() { printf '\n\033[1;34m▶ %s\033[0m\n' "$1"; }
 
-log "시스템 패키지 갱신"
-sudo apt-get update -y
-sudo apt-get upgrade -y
+[[ -r /etc/os-release ]] || { printf '지원하는 Linux 배포판을 확인할 수 없습니다.\n' >&2; exit 1; }
+# shellcheck disable=SC1091
+. /etc/os-release
 
-log "Node.js ${NODE_MAJOR}.x 설치"
-# Ubuntu 기본 저장소의 Node는 버전이 낮아 NodeSource를 쓴다.
-if ! command -v node >/dev/null 2>&1 || [[ "$(node -v)" != v${NODE_MAJOR}* ]]; then
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
-  sudo apt-get install -y nodejs
-fi
+case "${ID:-}" in
+  ubuntu|debian)
+    log "시스템 패키지 갱신 (apt)"
+    sudo apt-get update -y
+    sudo apt-get upgrade -y
+
+    log "Node.js ${NODE_MAJOR}.x 설치"
+    # Ubuntu 기본 저장소의 Node는 버전이 낮아 NodeSource를 쓴다.
+    if ! command -v node >/dev/null 2>&1 || [[ "$(node -v)" != v${NODE_MAJOR}* ]]; then
+      curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
+      sudo apt-get install -y nodejs
+    fi
+
+    log "배포 패키지 설치"
+    sudo apt-get install -y git build-essential python3 nginx certbot python3-certbot-nginx
+    ;;
+  amzn)
+    [[ "${VERSION_ID:-}" == 2023 ]] || {
+      printf 'Amazon Linux 2023만 지원합니다 (현재 VERSION_ID=%s).\n' "${VERSION_ID:-unknown}" >&2
+      exit 1
+    }
+
+    log "시스템 패키지 갱신 (dnf)"
+    sudo dnf upgrade -y
+
+    log "Node.js ${NODE_MAJOR}.x 및 배포 패키지 설치"
+    sudo dnf install -y \
+      git nodejs22 nodejs22-npm gcc-c++ make python3 \
+      nginx certbot python3-certbot-nginx
+    ;;
+  *)
+    printf '지원하지 않는 Linux 배포판입니다: %s\n' "${ID:-unknown}" >&2
+    exit 1
+    ;;
+esac
+
 node -v && npm -v
 
-log "빌드 도구 설치 (bcrypt 네이티브 모듈 컴파일에 필요)"
-sudo apt-get install -y build-essential python3
-
-log "Nginx 설치"
-sudo apt-get install -y nginx
+log "Nginx 활성화"
 sudo systemctl enable --now nginx
-
-log "certbot 설치 (SSL — 도메인이 생기면 사용)"
-sudo apt-get install -y certbot python3-certbot-nginx
 
 log "PM2 설치"
 sudo npm install -g pm2

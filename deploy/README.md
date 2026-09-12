@@ -26,7 +26,7 @@ root 권한이 필요하고, 앱을 재시작하는 동안에도 Nginx는 살아
 
 | 항목 | 값 | 이유 |
 | :--- | :--- | :--- |
-| AMI | Ubuntu Server 24.04 LTS | 스크립트가 apt 기준 |
+| AMI | Ubuntu Server 24.04 LTS 또는 Amazon Linux 2023 | 스크립트가 두 배포판을 자동 감지 |
 | 인스턴스 유형 | `t2.micro` 또는 `t3.micro` | 프리티어 |
 | 키 페어 | 새로 생성 (`.pem` 다운로드) | SSH 접속용. **다시 못 받는다** |
 | 스토리지 | 8~16 GiB | 로그·node_modules 여유 |
@@ -56,14 +56,19 @@ IP가 아니라 **보안그룹 ID로 여는 편이 안전**하고, EC2를 재시
 ## 3. 최초 세팅
 
 ```bash
+# Ubuntu
 ssh -i <키>.pem ubuntu@<EC2_퍼블릭_IP>
+
+# Amazon Linux 2023
+ssh -i <키>.pem ec2-user@<EC2_퍼블릭_IP>
 
 git clone https://github.com/hanium-2026-dongduk/Hanium-back.git ~/hanium-back
 cd ~/hanium-back
 bash deploy/setup-ec2.sh
 ```
 
-스크립트가 Node 22, PM2(+로그 회전), Nginx, certbot을 설치하고 의존성까지 받는다.
+스크립트가 운영체제를 자동 감지해 Node 22, PM2(+로그 회전), Nginx, certbot을 설치하고
+의존성까지 받는다.
 마지막에 **`pm2 startup`이 출력하는 `sudo env PATH=... ` 한 줄을 그대로 복사해 실행**해야
 재부팅 후 자동 기동이 등록된다.
 
