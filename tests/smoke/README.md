@@ -5,13 +5,14 @@
 검증한다. 이메일 발송만 스텁으로 대체하고(실제 메일은 보내지 않음), 나머지는 전부 실제
 코드 경로를 탄다.
 
-네 개의 스크립트가 있다:
+다섯 개의 스크립트가 있다:
 
 | 스크립트 | 대상 | 확인하는 것 |
 |----------|------|--------------|
 | `npm run smoke` (`auth.smoke.js`) | Week 1 (회원가입/로그인/refresh) | 회원가입 → 이메일 인증 → 로그인 → refresh(rotation) → 동시 refresh 요청 |
 | `npm run smoke:week2` (`week2.smoke.js`) | Week 2 (자녀 프로필/AU03/PIN/사용시간) | 소유권 검증, 활성 프로필 단일성(동시성 포함), 비밀번호 재설정 purpose 분리/재사용 차단/refresh 폐기, PIN 잠금/hash 비노출, heartbeat 누적·한도·헤더조작무시·날짜롤오버·동시성 |
 | `npm run smoke:week3` (`week3.smoke.js`) | Week 3 (출석/미션/리워드) | 출석 멱등성·동시성, 연속 출석일 계산과 마일스톤 보너스, 미션 지연 생성(동시 요청 포함), 완료 미션 재지급 차단, 멱등키 기반 중복 지급 차단, 레벨 자동 산정, 이력 페이지네이션/필터, 소유권 격리, 프로필 삭제 시 CASCADE |
+| `npm run smoke:week5` (`week5.smoke.js`) | 콘텐츠 전체 흐름 | 인증·프로필 → 동화 읽기·즐겨찾기 → 단어 미션·단어장 → 퀴즈 조회·채점 → 포인트·대시보드 |
 | `npm run smoke:migration` (`migration.smoke.js`) | `db/migrations/*.sql` | 구버전 스키마에 마이그레이션이 실제로 안전하게 적용되는지, idempotent한지, FK가 실제로 CASCADE/RESTRICT대로 동작하는지 |
 
 ## 실행 방법
@@ -22,6 +23,7 @@
 DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=hanium_smoke DB_USER=root DB_PASSWORD= npm run smoke
 DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=hanium_smoke DB_USER=root DB_PASSWORD= npm run smoke:week2
 DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=hanium_smoke DB_USER=root DB_PASSWORD= npm run smoke:week3
+DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=hanium_smoke DB_USER=root DB_PASSWORD= npm run smoke:week5
 # migration.smoke.js는 DB_NAME을 스스로 'hanium_migration_check'로 고정해서 쓴다(위 DB_NAME과 무관)
 DB_HOST=127.0.0.1 DB_PORT=3306 DB_USER=root DB_PASSWORD= npm run smoke:migration
 ```
@@ -48,3 +50,7 @@ DB_HOST=127.0.0.1 DB_PORT=3306 DB_USER=root DB_PASSWORD= npm run smoke:migration
   # 끝나면
   docker stop hanium-smoke-db
   ```
+
+Week5 스모크는 Gemini·이미지·TTS 외부 API를 호출하지 않는다. 외부 API 비용과 일시 장애로
+CI가 흔들리지 않도록 생성 완료 상태의 동화와 퀴즈 fixture를 실제 MySQL에 넣은 뒤, 이후의
+모든 HTTP·서비스·DB 흐름을 검증한다. AI 생성 품질과 외부 연동은 운영 전 수동 점검 대상이다.
