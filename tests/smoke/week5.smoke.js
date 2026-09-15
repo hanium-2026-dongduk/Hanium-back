@@ -102,27 +102,21 @@ async function main() {
     .send({ child_profile_id: childId, story_id: story.story_id });
   assert.strictEqual(favorite.status, 201, JSON.stringify(favorite.body));
 
-  for (let i = 0; i < 5; i += 1) {
-    const click = await request(app)
-      .post('/api/missions/word-click')
-      .set(auth)
-      .send({ child_profile_id: childId });
-    assert.strictEqual(click.status, 200, JSON.stringify(click.body));
+  for (let i = 1; i <= 5; i += 1) {
+    const vocabulary = await request(app).post('/api/vocabulary').set(auth).send({
+      child_profile_id: childId,
+      story_id: story.story_id,
+      english_word: `brave${i}`,
+      korean_meaning: `용감한 ${i}`,
+    });
+    assert.strictEqual(vocabulary.status, 201, JSON.stringify(vocabulary.body));
   }
   const wordMission = await DailyMission.findOne({
     where: { child_profile_id: childId, mission_type: 'word_clicked' },
   });
   assert.strictEqual(wordMission.status, 'rewarded');
   assert.strictEqual(wordMission.progress_count, 5);
-
-  const vocabulary = await request(app).post('/api/vocabulary').set(auth).send({
-    child_profile_id: childId,
-    story_id: story.story_id,
-    english_word: 'brave',
-    korean_meaning: '용감한',
-  });
-  assert.strictEqual(vocabulary.status, 201, JSON.stringify(vocabulary.body));
-  assert.strictEqual(await VocabularyEntry.count({ where: { child_profile_id: childId } }), 1);
+  assert.strictEqual(await VocabularyEntry.count({ where: { child_profile_id: childId } }), 5);
 
   const quizSet = await QuizSet.create({ story_id: story.story_id, status: 'ready', source_type: 'story' });
   const answers = [];
@@ -161,7 +155,7 @@ async function main() {
   const dashboard = await request(app).get(`/api/dashboard/${childId}`).set(auth);
   assert.strictEqual(dashboard.status, 200, JSON.stringify(dashboard.body));
   assert.strictEqual(Number(dashboard.body.data.storyCount), 1);
-  assert.strictEqual(dashboard.body.data.vocabularyCount, 1);
+  assert.strictEqual(dashboard.body.data.vocabularyCount, 5);
   assert.strictEqual(dashboard.body.data.quizStats.totalAttempts, 1);
 
   const wallet = await RewardWallet.findOne({ where: { child_profile_id: childId } });

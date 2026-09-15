@@ -50,6 +50,7 @@ const options = {
       { name: '배지', description: '조건 기반 배지 (RW04_ACH_02, MP02_RWD_03)' },
       { name: '스티커', description: '칭찬 스티커 (PD04_STK_01, MP05_STK_01)' },
       { name: '퀴즈', description: '동화 기반 퀴즈 생성·조회·채점·풀이 기록' },
+      { name: '단어장', description: '단어 저장·조회·즐겨찾기·삭제' },
       { name: '기타', description: '헬스체크' },
     ],
     components: {
