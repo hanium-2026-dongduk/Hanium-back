@@ -14,6 +14,13 @@ const listValidation = [
   query('child_profile_id').isInt({ min: 1 }).toInt(),
   query('page').optional().isInt({ min: 1 }).toInt(),
   query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+  query('favorite_only').optional().isBoolean(),
+];
+
+const favoriteValidation = [
+  param('id').isInt({ min: 1 }).toInt(),
+  body('child_profile_id').isInt({ min: 1 }).toInt(),
+  body('is_favorite').isBoolean().toBoolean(),
 ];
 
 const deleteValidation = [
@@ -47,10 +54,32 @@ const list = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
 
-    const { child_profile_id, page, limit } = req.query;
-    const result = await vocabularyService.listEntries(req.user.user_id, child_profile_id, { page, limit });
+    const { child_profile_id, page, limit, favorite_only } = req.query;
+    const result = await vocabularyService.listEntries(req.user.user_id, child_profile_id, {
+      page: Number(page) || 1,
+      limit: Number(limit) || 20,
+      favoriteOnly: favorite_only === 'true',
+    });
 
     return response.success(res, 200, '단어장을 조회했습니다.', result);
+  } catch (err) {
+    if (err.statusCode) return response.error(res, err.statusCode, err.message);
+    next(err);
+  }
+};
+
+const setFavorite = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
+
+    const entry = await vocabularyService.setFavorite(
+      req.user.user_id,
+      req.body.child_profile_id,
+      req.params.id,
+      req.body.is_favorite
+    );
+    return response.success(res, 200, '단어 즐겨찾기가 변경되었습니다.', { entry });
   } catch (err) {
     if (err.statusCode) return response.error(res, err.statusCode, err.message);
     next(err);
@@ -72,4 +101,13 @@ const remove = async (req, res, next) => {
   }
 };
 
-module.exports = { saveValidation, save, listValidation, list, deleteValidation, remove };
+module.exports = {
+  saveValidation,
+  save,
+  listValidation,
+  list,
+  favoriteValidation,
+  setFavorite,
+  deleteValidation,
+  remove,
+};

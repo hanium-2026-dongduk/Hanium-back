@@ -2,6 +2,8 @@ const { VocabularyEntry } = require('../models');
 const pool = require('../config/db');
 const childService = require('./child.service');
 const badgeService = require('./badge.service');
+const missionService = require('./mission.service');
+const { withTransaction } = require('../utils/dbRetry');
 
 /**
  * saveEntry에 storyId가 오면 실제로 이 childProfileId 소유의 동화인지 확인한다.
@@ -27,12 +29,23 @@ async function saveEntry(userId, { childProfileId, storyId, englishWord, koreanM
     await verifyStoryOwnership(childProfileId, storyId);
   }
 
-  const entry = await VocabularyEntry.create({
-    child_profile_id: childProfileId,
-    story_id: storyId || null,
-    english_word: englishWord,
-    korean_meaning: koreanMeaning,
-    example_sentence: exampleSentence || null,
+  const entry = await withTransaction(undefined, async (t) => {
+    const created = await VocabularyEntry.create({
+      child_profile_id: childProfileId,
+      story_id: storyId || null,
+      english_word: englishWord,
+      korean_meaning: koreanMeaning,
+      example_sentence: exampleSentence || null,
+    }, { transaction: t });
+
+    await missionService.recordProgress({
+      childProfileId,
+      eventType: 'word_clicked',
+      eventId: `vocabulary_entry:${created.vocabulary_entry_id}`,
+      transaction: t,
+    });
+
+    return created;
   });
 
   // 저장은 이미 완료됐으므로 배지 판정 실패가 단어 저장을 실패로 바꾸지 않게 한다.
@@ -41,11 +54,15 @@ async function saveEntry(userId, { childProfileId, storyId, englishWord, koreanM
   return entry;
 }
 
-async function listEntries(userId, childProfileId, { page = 1, limit = 20 } = {}) {
+async function listEntries(userId, childProfileId, { page = 1, limit = 20, favoriteOnly = false } = {}) {
   await childService.getById(userId, childProfileId);
 
+  const where = {
+    child_profile_id: childProfileId,
+    ...(favoriteOnly ? { is_favorite: true } : {}),
+  };
   const { count, rows } = await VocabularyEntry.findAndCountAll({
-    where: { child_profile_id: childProfileId },
+    where,
     order: [['created_at', 'DESC']],
     limit,
     offset: (page - 1) * limit,
@@ -55,6 +72,25 @@ async function listEntries(userId, childProfileId, { page = 1, limit = 20 } = {}
     items: rows,
     pagination: { page, limit, totalCount: count, totalPages: Math.max(1, Math.ceil(count / limit)) },
   };
+}
+
+async function setFavorite(userId, childProfileId, entryId, isFavorite) {
+  await childService.getById(userId, childProfileId);
+
+  const [updatedCount] = await VocabularyEntry.update(
+    { is_favorite: isFavorite },
+    { where: { vocabulary_entry_id: entryId, child_profile_id: childProfileId } }
+  );
+  if (updatedCount === 0) {
+    const error = new Error('단어를 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const entry = await VocabularyEntry.findOne({
+    where: { vocabulary_entry_id: entryId, child_profile_id: childProfileId },
+  });
+  return entry;
 }
 
 async function deleteEntry(userId, childProfileId, entryId) {
@@ -73,4 +109,4 @@ async function deleteEntry(userId, childProfileId, entryId) {
   return { deleted: true };
 }
 
-module.exports = { saveEntry, listEntries, deleteEntry };
+module.exports = { saveEntry, listEntries, setFavorite, deleteEntry };

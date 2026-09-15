@@ -21,8 +21,9 @@
 | 학습 이벤트 → 미션 진행도 연동 | ✅ 출석·동화·단어 클릭·퀴즈 연동 완료 |
 | 정책 수치(레벨 임계값, 미션 보상, streak 보너스) | ✅ **확정** ([REWARD_POLICY.md](./REWARD_POLICY.md)) |
 
-네 미션 모두 실제 이벤트와 연결되어 있다. 단어 클릭은 프론트가 동화 화면에서 단어를 누를
-때 `POST /api/missions/word-click`을 호출해야 진행된다.
+네 미션 모두 실제 이벤트와 연결되어 있다. `word_clicked`는 단어장 저장
+(`POST /api/vocabulary`) 성공 시 자동으로 진행된다. 프론트는 같은 저장 동작에
+`POST /api/missions/word-click`까지 중복 호출하면 안 된다.
 
 ---
 

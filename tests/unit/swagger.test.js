@@ -22,6 +22,7 @@ const MOUNTS = {
   '/badges': 'badge.route',
   '/stickers': 'sticker.route',
   '/quizzes': 'quiz.route',
+  '/vocabulary': 'vocabulary.route',
 };
 
 /**
