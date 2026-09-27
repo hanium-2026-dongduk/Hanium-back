@@ -32,6 +32,8 @@ const Inquiry = require('./inquiry.model');
 // 동화 생성 관련 관계
 Character.hasMany(Story, { foreignKey: 'character_id', onDelete: 'RESTRICT' });
 Story.belongsTo(Character, { foreignKey: 'character_id' });
+ChildProfile.hasMany(Character, { foreignKey: 'child_profile_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
+Character.belongsTo(ChildProfile, { foreignKey: 'child_profile_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
 
 Story.hasMany(StoryPage, { foreignKey: 'story_id', onDelete: 'CASCADE' });
 StoryPage.belongsTo(Story, { foreignKey: 'story_id' });

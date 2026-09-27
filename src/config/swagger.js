@@ -63,6 +63,7 @@ const options = {
       { name: '스티커', description: '칭찬 스티커 (PD04_STK_01, MP05_STK_01)' },
       { name: '퀴즈', description: '동화 기반 퀴즈 생성·조회·채점·풀이 기록' },
       { name: '단어장', description: '단어 저장·조회·즐겨찾기·삭제' },
+      { name: '캐릭터', description: '공용 프리셋과 자녀별 캐릭터 조회·생성' },
       { name: '고객지원', description: '공지·이벤트·FAQ·1:1 문의 (CS01~CS04)' },
       { name: '기타', description: '헬스체크' },
     ],

@@ -11,6 +11,7 @@ const response = require('../utils/response');
 const missionService = require('../services/mission.service');
 const badgeService = require('../services/badge.service');
 const { Character, StoryReadLog } = require('../models');
+const { Op } = require('sequelize');
 
 // 1. 동화 생성 및 트랜잭션 저장 API (POST /api/stories)
 router.post('/', authenticate, async (req, res, next) => {
@@ -27,7 +28,16 @@ router.post('/', authenticate, async (req, res, next) => {
       return response.error(res, 400, 'characterId와 배경/사건 정보(선택 또는 직접입력)가 필요합니다.');
     }
 
-    const character = await Character.findByPk(characterId);
+    // 공용 프리셋 또는 이 자녀에게 속한 캐릭터만 동화에 사용할 수 있다.
+    const character = await Character.findOne({
+      where: {
+        character_id: characterId,
+        [Op.or]: [
+          { type: 'PRESET', child_profile_id: null },
+          { child_profile_id: childProfileId },
+        ],
+      },
+    });
     if (!character) {
     return response.error(res, 404, '캐릭터를 찾을 수 없습니다.');
     }

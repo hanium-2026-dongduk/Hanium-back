@@ -222,6 +222,12 @@ async function main() {
     assert.ok(await fkExists('refresh_tokens', 'user_id', 'users'));
   });
 
+  await step('characters에 자녀 소유권 컬럼·인덱스·FK가 생성됐다', async () => {
+    assert.ok(await columnExists('characters', 'child_profile_id'));
+    assert.ok(await indexExists('characters', 'idx_characters_child_profile'));
+    assert.ok(await fkExists('characters', 'child_profile_id', 'child_profiles'));
+  });
+
   await step(
     'child_profiles→users FK는 RESTRICT다 (생성 컬럼 의존성 때문에 CASCADE 불가) — 자녀가 있으면 유저 삭제가 막힌다',
     async () => {

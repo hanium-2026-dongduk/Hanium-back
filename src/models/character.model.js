@@ -9,6 +9,10 @@ const Character = sequelize.define('Character', {
     primaryKey: true,
     autoIncrement: true,
   },
+  child_profile_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
