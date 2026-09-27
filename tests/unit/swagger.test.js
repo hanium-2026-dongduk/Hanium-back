@@ -24,6 +24,7 @@ const MOUNTS = {
   '/quizzes': 'quiz.route',
   '/vocabulary': 'vocabulary.route',
   '/characters': 'character.router',
+  '/stories': 'story.router',
   '': 'support.route',
 };
 
@@ -136,6 +137,7 @@ describe('Swagger 스펙은', () => {
     const PUBLIC = [
       'get /health',
       'post /auth/signup',
+      'get /stories/explore',
       'post /auth/email/send',
       'post /auth/email/verify',
       'post /auth/login',

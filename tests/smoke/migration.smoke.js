@@ -228,6 +228,13 @@ async function main() {
     assert.ok(await fkExists('characters', 'child_profile_id', 'child_profiles'));
   });
 
+  await step('동화 선택지와 생성 작업 테이블이 생성됐다', async () => {
+    assert.ok(await columnExists('stories', 'choices_json'));
+    assert.ok(await indexExists('story_generation_jobs', 'uq_story_generation_user_request'));
+    assert.ok(await fkExists('story_generation_jobs', 'child_profile_id', 'child_profiles'));
+    assert.ok(await fkExists('story_generation_jobs', 'story_id', 'stories'));
+  });
+
   await step(
     'child_profiles→users FK는 RESTRICT다 (생성 컬럼 의존성 때문에 CASCADE 불가) — 자녀가 있으면 유저 삭제가 막힌다',
     async () => {
