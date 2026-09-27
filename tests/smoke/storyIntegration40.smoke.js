@@ -7,6 +7,7 @@ if (process.env.DB_NAME !== 'hanium_migration_check') {
 
 const assert = require('assert');
 const request = require('supertest');
+const pool = require('../../src/config/db');
 const { generateAccessToken } = require('../../src/utils/jwt');
 const { sequelize, User, ChildProfile, Character } = require('../../src/models');
 const app = require('../../src/app');
@@ -65,10 +66,13 @@ async function main() {
     expectStatus(await ownerAuth(request(app).get(`/api/vocabulary?child_profile_id=${ownChild.child_profile_id}&page=2&limit=5`)), 200);
     console.log('✓ MySQL 목록 페이지네이션');
   } finally {
-    await Character.destroy({ where: { character_id: created.characters } });
-    await ChildProfile.destroy({ where: { child_profile_id: created.profiles } });
-    await User.destroy({ where: { user_id: created.users } });
-    await sequelize.close();
+    try {
+      await Character.destroy({ where: { character_id: created.characters } });
+      await ChildProfile.destroy({ where: { child_profile_id: created.profiles } });
+      await User.destroy({ where: { user_id: created.users } });
+    } finally {
+      await Promise.all([sequelize.close(), pool.end()]);
+    }
   }
 }
 
