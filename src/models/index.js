@@ -23,6 +23,11 @@ const QuizAttempt = require('./quizAttempt.model');
 const ChildBadge = require('./childBadge.model');
 const StickerSend = require('./stickerSend.model');
 const StoryReadLog = require('./storyReadLog.model');
+const Notice = require('./notice.model');
+const NoticeRead = require('./noticeRead.model');
+const Event = require('./event.model');
+const Faq = require('./faq.model');
+const Inquiry = require('./inquiry.model');
 
 // 동화 생성 관련 관계
 Character.hasMany(Story, { foreignKey: 'character_id', onDelete: 'RESTRICT' });
@@ -124,6 +129,13 @@ StoryReadLog.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 Story.hasMany(StoryReadLog, { foreignKey: 'story_id', onDelete: 'CASCADE' });
 StoryReadLog.belongsTo(Story, { foreignKey: 'story_id' });
 
+Notice.hasMany(NoticeRead, { foreignKey: 'notice_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+NoticeRead.belongsTo(Notice, { foreignKey: 'notice_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+User.hasMany(NoticeRead, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+NoticeRead.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+User.hasMany(Inquiry, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Inquiry.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
 
 const db = {
   sequelize,
@@ -151,6 +163,11 @@ const db = {
   ChildBadge,
   StickerSend,
   StoryReadLog,
+  Notice,
+  NoticeRead,
+  Event,
+  Faq,
+  Inquiry,
 };
 
 module.exports = db;
