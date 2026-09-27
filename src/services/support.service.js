@@ -49,9 +49,12 @@ async function getNotice(userId, noticeId) {
 async function markNoticeRead(userId, noticeId) {
   const notice = await Notice.findOne({ where: { notice_id: noticeId, ...noticeVisible(new Date()) } });
   if (!notice) throw notFound('공지를 찾을 수 없습니다.');
+  // MySQL DATETIME은 밀리초를 저장하지 않는다. 최초 응답과 재조회 응답의 시각을 맞춘다.
+  const readAt = new Date();
+  readAt.setMilliseconds(0);
   const [read] = await NoticeRead.findOrCreate({
     where: { notice_id: noticeId, user_id: userId },
-    defaults: { read_at: new Date() },
+    defaults: { read_at: readAt },
   });
   return { notice_id: notice.notice_id, is_read: true, read_at: read.read_at };
 }
