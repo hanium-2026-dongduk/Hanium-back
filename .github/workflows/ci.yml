@@ -91,6 +91,11 @@ jobs:
           DB_NAME: hanium_migration_check
         run: npm run smoke:support
 
+      - name: 동화 연동 API 스모크 (마이그레이션된 MySQL)
+        env:
+          DB_NAME: hanium_migration_check
+        run: npm run smoke:story40
+
       # 아래 셋은 같은 DB에 sync({force:true})를 돌리므로 반드시 순차로 실행한다.
       - name: Week1 스모크 (인증)
         run: npm run smoke

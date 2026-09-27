@@ -15,7 +15,8 @@
     "smoke:week3": "node tests/smoke/week3.smoke.js",
     "smoke:week5": "node tests/smoke/week5.smoke.js",
     "smoke:migration": "node tests/smoke/migration.smoke.js",
-    "smoke:support": "node tests/smoke/support.smoke.js"
+    "smoke:support": "node tests/smoke/support.smoke.js",
+    "smoke:story40": "node tests/smoke/storyIntegration40.smoke.js"
   },
   "repository": {
     "type": "git",

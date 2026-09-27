@@ -23,6 +23,7 @@ const MOUNTS = {
   '/stickers': 'sticker.route',
   '/quizzes': 'quiz.route',
   '/vocabulary': 'vocabulary.route',
+  '/characters': 'character.router',
   '': 'support.route',
 };
 
