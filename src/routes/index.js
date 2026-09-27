@@ -17,6 +17,7 @@ const rewardRouter = require('./reward.route');
 const dashboardRouter = require('./dashboard.route');
 const badgeRouter = require('./badge.route');
 const stickerRouter = require('./sticker.route');
+const supportRouter = require('./support.route');
 
 const router = express.Router();
 
@@ -37,5 +38,6 @@ router.use('/rewards', rewardRouter);
 router.use('/dashboard', dashboardRouter);
 router.use('/badges', badgeRouter);
 router.use('/stickers', stickerRouter);
+router.use('/', supportRouter);
 
 module.exports = router;

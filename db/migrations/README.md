@@ -36,6 +36,7 @@
 | `0009_create_daily_missions.sql` | `daily_missions` 테이블 신규 생성 (자녀별 하루치 데일리 미션 진행 상태) | `UNIQUE(child_profile_id, mission_date, mission_type)`. 스케줄러 없이 지연 생성 |
 | `0010_create_reward_wallets.sql` | `reward_wallets` 테이블 신규 생성 (포인트 잔액/레벨/연속출석일) | `UNIQUE(child_profile_id)` + `CHECK(points >= 0)`. **MySQL 8.0.16+ 필요**(CHECK 강제) |
 | `0011_create_reward_transactions.sql` | `reward_transactions` 테이블 신규 생성 (포인트 지급 원장) | `UNIQUE(child_profile_id, idempotency_key)`로 중복 지급 차단 + `CHECK(points > 0)` |
+| `0030_create_support_tables.sql` | 공지·공지 읽음·이벤트·FAQ·1:1 문의 테이블 | 고객지원 API. 0021~0029는 다른 기능의 병렬 작업을 위해 비워둠 |
 
 ## 적용 시 주의사항
 
