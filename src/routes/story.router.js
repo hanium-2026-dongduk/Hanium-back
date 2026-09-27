@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/db');
 const { generateStoryPipeline } = require('../services/storyGenerator');
-const { saveStoryWithTransaction } = require('../services/story.service');
+const { saveStoryWithTransaction, getStoryDetail } = require('../services/story.service');
+const { enqueueStory, getStoryGenerationJob } = require('../services/storyGenerationJob.service');
 const storySettingRouter = require('./storySetting.router');
 const { authenticate } = require('../middlewares/auth');
 const childService = require('../services/child.service');
@@ -13,63 +13,113 @@ const badgeService = require('../services/badge.service');
 const { Character, StoryReadLog } = require('../models');
 const { Op } = require('sequelize');
 
+const statusError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
+
+async function resolveStoryInput(req) {
+  const { characterId, backgroundId, background, mainEventId, mainEvent, childAge, childProfileId } = req.body;
+  if (!Number.isSafeInteger(Number(childProfileId)) || Number(childProfileId) < 1) {
+    throw statusError(400, 'childProfileId가 필요합니다.');
+  }
+  await childService.getById(req.user.user_id, childProfileId);
+  if (!Number.isSafeInteger(Number(characterId)) || Number(characterId) < 1 ||
+      (!backgroundId && !background) || (!mainEventId && !mainEvent)) {
+    throw statusError(400, 'characterId와 배경/사건 정보(선택 또는 직접입력)가 필요합니다.');
+  }
+
+  const character = await Character.findOne({
+    where: {
+      character_id: characterId,
+      [Op.or]: [
+        { type: 'PRESET', child_profile_id: null },
+        { child_profile_id: childProfileId },
+      ],
+    },
+  });
+  if (!character) throw statusError(404, '캐릭터를 찾을 수 없습니다.');
+
+  const resolvedBackground = background || storySettingRouter.presets?.backgrounds.find((b) => b.id === backgroundId)?.name;
+  const resolvedMainEvent = mainEvent || storySettingRouter.presets?.mainEvents.find((m) => m.id === mainEventId)?.name;
+  if (typeof resolvedBackground !== 'string' || !resolvedBackground.trim() || resolvedBackground.length > 255 ||
+      typeof resolvedMainEvent !== 'string' || !resolvedMainEvent.trim() || resolvedMainEvent.length > 255) {
+    throw statusError(400, '유효하지 않은 배경 또는 이벤트입니다.');
+  }
+  const age = childAge === undefined ? 6 : Number(childAge);
+  if (!Number.isInteger(age) || age < 1 || age > 18) {
+    throw statusError(400, 'childAge는 1~18 사이의 정수여야 합니다.');
+  }
+
+  return {
+    input: {
+      childProfileId: Number(childProfileId),
+      characterId: Number(characterId),
+      childAge: age,
+      background: resolvedBackground,
+      mainEvent: resolvedMainEvent,
+    },
+    character,
+  };
+}
+
+/**
+ * @openapi
+ * /stories:
+ *   post:
+ *     tags: [동화 생성]
+ *     summary: 동화 생성 (Idempotency-Key가 있으면 비동기 접수)
+ *     description: 같은 보호자와 키로 같은 입력을 재전송하면 기존 작업을 반환한다. 헤더를 생략하면 기존 동기 생성 응답을 반환한다.
+ *     parameters:
+ *       - in: header
+ *         name: Idempotency-Key
+ *         schema: { type: string, pattern: '^[A-Za-z0-9_.:-]{1,100}$' }
+ *         description: 비동기 생성에 사용할 요청별 고유 키. 같은 요청 재시도 시 같은 키를 사용한다.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [childProfileId, characterId]
+ *             properties:
+ *               childProfileId: { type: integer, minimum: 1 }
+ *               characterId: { type: integer, minimum: 1 }
+ *               childAge: { type: integer, minimum: 1, maximum: 18, default: 6 }
+ *               backgroundId: { type: string, description: 배경 프리셋 ID. background와 둘 중 하나 필요 }
+ *               background: { type: string, maxLength: 255 }
+ *               mainEventId: { type: string, description: 사건 프리셋 ID. mainEvent와 둘 중 하나 필요 }
+ *               mainEvent: { type: string, maxLength: 255 }
+ *     responses:
+ *       201: { description: 헤더 생략 시 동기 생성 결과를 data에 반환 }
+ *       202: { description: 비동기 작업의 jobId·status·storyId를 data에 반환. Location 헤더에 조회 경로 포함 }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409: { $ref: '#/components/responses/Conflict' }
+ */
 // 1. 동화 생성 및 트랜잭션 저장 API (POST /api/stories)
 router.post('/', authenticate, async (req, res, next) => {
   try {
-    const { characterId, backgroundId, background, mainEventId, mainEvent, childAge, childProfileId } = req.body;
-
-    if (!childProfileId) {
-      return response.error(res, 400, 'childProfileId가 필요합니다.');
+    const { input, character } = await resolveStoryInput(req);
+    if (req.headers['idempotency-key'] !== undefined) {
+      const job = await enqueueStory({
+        userId: req.user.user_id,
+        requestId: req.headers['idempotency-key'],
+        input,
+      });
+      res.set('Location', `/api/stories/generations/${job.jobId}`);
+      return response.success(res, 202, '동화 생성 작업을 접수했습니다.', job);
     }
-    // 소유권 검증 — 미소유/미존재 시 404 (child.service.js의 getById가 던짐)
-    await childService.getById(req.user.user_id, childProfileId);
-
-    if (!characterId || (!backgroundId && !background) || (!mainEventId && !mainEvent)) {
-      return response.error(res, 400, 'characterId와 배경/사건 정보(선택 또는 직접입력)가 필요합니다.');
-    }
-
-    // 공용 프리셋 또는 이 자녀에게 속한 캐릭터만 동화에 사용할 수 있다.
-    const character = await Character.findOne({
-      where: {
-        character_id: characterId,
-        [Op.or]: [
-          { type: 'PRESET', child_profile_id: null },
-          { child_profile_id: childProfileId },
-        ],
-      },
-    });
-    if (!character) {
-    return response.error(res, 404, '캐릭터를 찾을 수 없습니다.');
-    }
-
-    const resolvedBackground = background || storySettingRouter.presets?.backgrounds.find(b => b.id === backgroundId)?.name;
-    const resolvedMainEvent = mainEvent || storySettingRouter.presets?.mainEvents.find(m => m.id === mainEventId)?.name;
-
-    if (!resolvedBackground || !resolvedMainEvent) {
-      return response.error(res, 400, '유효하지 않은 배경 또는 이벤트입니다.');
-    }
-
-    const setting = { background: resolvedBackground, mainEvent: resolvedMainEvent };
 
     const aiStory = await generateStoryPipeline({
-      childAge: childAge || 6,
+      childAge: input.childAge,
       character,
-      setting
+      setting: { background: input.background, mainEvent: input.mainEvent },
     });
-
-    const savedStory = await saveStoryWithTransaction({
-      childProfileId,
-      characterId: Number(characterId),
-      childAge: childAge || 6,
-      background: resolvedBackground,
-      mainEvent: resolvedMainEvent,
-      aiStory
-    });
+    const savedStory = await saveStoryWithTransaction({ ...input, aiStory });
 
     return response.success(res, 201, '동화가 생성되었습니다.', {
       character: character.name,
-      setting,
-      ...savedStory
+      setting: { background: input.background, mainEvent: input.mainEvent },
+      ...savedStory,
     });
 
   } catch (error) {
@@ -78,12 +128,98 @@ router.post('/', authenticate, async (req, res, next) => {
   }
 });
 
+/**
+ * @openapi
+ * /stories:
+ *   get:
+ *     tags: [동화 생성]
+ *     summary: 내 자녀의 동화 책장 조회
+ *     parameters:
+ *       - in: query
+ *         name: child_profile_id
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+ *       - in: query
+ *         name: favorite
+ *         schema: { type: boolean }
+ *     responses:
+ *       200: { description: 동화 목록과 pagination을 data에 반환 }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // 2. 내 책장 조회 (GET /api/stories) — 정렬/즐겨찾기필터/페이지네이션
 router.get('/', authenticate, storyLibraryController.listValidation, storyLibraryController.list);
 
+/**
+ * @openapi
+ * /stories/explore:
+ *   get:
+ *     tags: [동화 생성]
+ *     summary: 공개 동화 탐색
+ *     security: []
+ *     responses:
+ *       200: { description: 공개 동화 목록과 pagination을 data에 반환 }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ */
 // 3. 공개 동화 탐색 (GET /api/stories/explore) — /:id보다 반드시 앞에 위치
 router.get('/explore', storyLibraryController.exploreValidation, storyLibraryController.explore);
 
+/**
+ * @openapi
+ * /stories/generations/{jobId}:
+ *   get:
+ *     tags: [동화 생성]
+ *     summary: 비동기 동화 생성 상태 조회
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *     responses:
+ *       200: { description: jobId·status(pending/processing/completed/failed)·storyId와 실패 시 errorMessage를 data에 반환 }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+// 비동기 생성 작업은 보호자 계정별로만 조회할 수 있다.
+router.get('/generations/:jobId', authenticate, async (req, res, next) => {
+  try {
+    const job = await getStoryGenerationJob(req.user.user_id, req.params.jobId);
+    return response.success(res, 200, '동화 생성 작업을 조회했습니다.', job);
+  } catch (error) {
+    if (error.statusCode) return response.error(res, error.statusCode, error.message);
+    return next(error);
+  }
+});
+
+/**
+ * @openapi
+ * /stories/{id}:
+ *   get:
+ *     tags: [동화 생성]
+ *     summary: 저장된 동화 상세 조회
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *       - in: query
+ *         name: child_profile_id
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *     responses:
+ *       200: { description: storyId·title·character·setting·coverImageUrl·pages·choices를 data에 반환 }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // 4. 동화 상세 조회 API (GET /api/stories/:id)
 router.get('/:id', authenticate, async (req, res, next) => {
   try {
@@ -95,20 +231,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
     }
     await childService.getById(req.user.user_id, childProfileId);
 
-    const [storyRows] = await pool.execute(
-  `SELECT s.story_id, s.title, s.child_profile_id, sp.page_number, sp.content, spi.image_url, spt.audio_url
-   FROM stories s
-   JOIN story_pages sp ON s.story_id = sp.story_id
-   LEFT JOIN story_page_illustrations spi ON sp.story_page_id = spi.story_page_id
-   LEFT JOIN story_page_tts spt ON sp.story_page_id = spt.story_page_id
-   WHERE s.story_id = ? AND (s.child_profile_id = ? OR s.is_public = TRUE)
-   ORDER BY sp.page_number ASC`,
-  [id, childProfileId]
-);
-
-    if (storyRows.length === 0) {
-      return response.error(res, 404, '동화를 찾을 수 없습니다.');
-    }
+    const story = await getStoryDetail(id, childProfileId);
 
     // 미션 연동 (Week3 A 설계문서 6절 계약): 조회 성공 시 story_read 이벤트 기록.
     // 읽기 API 자체를 막으면 안 되므로 best-effort로 처리 — 실패해도 조회 응답에는
@@ -134,25 +257,50 @@ router.get('/:id', authenticate, async (req, res, next) => {
   })
   .catch((err) => console.error('[activity] story_read 기록 실패:', err.message));
 
-    return response.success(res, 200, '동화 상세를 조회했습니다.', {
-      storyId: storyRows[0].story_id,
-      title: storyRows[0].title,
-      pages: storyRows.map((row) => ({
-        pageNumber: row.page_number,
-        content: row.content,
-        imageUrl: row.image_url,
-        audioUrl: row.audio_url,
-      })),
-    });
+    return response.success(res, 200, '동화 상세를 조회했습니다.', story);
   } catch (error) {
     if (error.statusCode) return response.error(res, error.statusCode, error.message);
     next(error);
   }
 });
 
+/**
+ * @openapi
+ * /stories/{storyId}/public:
+ *   put:
+ *     tags: [동화 생성]
+ *     summary: 내 자녀 동화의 공개 여부 설정
+ *     parameters:
+ *       - in: path
+ *         name: storyId
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *     responses:
+ *       200: { description: 변경된 공개 여부를 data에 반환 }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // 5. 공개/비공개 설정 (PUT /api/stories/:storyId/public)
 router.put('/:storyId/public', authenticate, storyLibraryController.togglePublicValidation, storyLibraryController.togglePublic);
 
+/**
+ * @openapi
+ * /stories/{storyId}:
+ *   delete:
+ *     tags: [동화 생성]
+ *     summary: 내 자녀의 동화 삭제
+ *     parameters:
+ *       - in: path
+ *         name: storyId
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *     responses:
+ *       200: { description: 삭제 완료 }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 // 6. 동화 삭제 (DELETE /api/stories/:storyId)
 router.delete('/:storyId', authenticate, storyLibraryController.deleteValidation, storyLibraryController.remove);
 

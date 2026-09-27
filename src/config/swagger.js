@@ -64,6 +64,7 @@ const options = {
       { name: '퀴즈', description: '동화 기반 퀴즈 생성·조회·채점·풀이 기록' },
       { name: '단어장', description: '단어 저장·조회·즐겨찾기·삭제' },
       { name: '캐릭터', description: '공용 프리셋과 자녀별 캐릭터 조회·생성' },
+      { name: '동화 생성', description: '동화 생성 작업과 상세 조회' },
       { name: '고객지원', description: '공지·이벤트·FAQ·1:1 문의 (CS01~CS04)' },
       { name: '기타', description: '헬스체크' },
     ],
@@ -215,6 +216,10 @@ const options = {
         },
         BadRequest: {
           description: '입력값 오류',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+        },
+        Conflict: {
+          description: '이미 다른 요청에 사용한 Idempotency-Key',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
         },
         TooManyRequests: {

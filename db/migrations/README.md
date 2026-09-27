@@ -38,6 +38,7 @@
 | `0011_create_reward_transactions.sql` | `reward_transactions` 테이블 신규 생성 (포인트 지급 원장) | `UNIQUE(child_profile_id, idempotency_key)`로 중복 지급 차단 + `CHECK(points > 0)` |
 | `0030_create_support_tables.sql` | 공지·공지 읽음·이벤트·FAQ·1:1 문의 테이블 | 고객지원 API. 0021~0029는 다른 기능의 병렬 작업을 위해 비워둠 |
 | `0031_scope_characters_to_child_profiles.sql` | 캐릭터에 자녀 프로필 소유권 컬럼·FK 추가 | 기존 PRESET은 공용, 소유자 불명 CUSTOM/RANDOM은 API에서 숨김 |
+| `0032_create_story_generation_jobs.sql` | 동화 선택지 저장 및 비동기 생성 작업 테이블 | 사용자별 요청 ID 유일성, 작업 임대·상태 추적 |
 
 ## 적용 시 주의사항
 

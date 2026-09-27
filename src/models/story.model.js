@@ -31,6 +31,10 @@ const Story = sequelize.define('Story', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
+  choices_json: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
   is_public: {
     type: DataTypes.BOOLEAN,
     allowNull: false,

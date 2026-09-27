@@ -28,6 +28,7 @@ const NoticeRead = require('./noticeRead.model');
 const Event = require('./event.model');
 const Faq = require('./faq.model');
 const Inquiry = require('./inquiry.model');
+const StoryGenerationJob = require('./storyGenerationJob.model');
 
 // 동화 생성 관련 관계
 Character.hasMany(Story, { foreignKey: 'character_id', onDelete: 'RESTRICT' });
@@ -47,6 +48,12 @@ StoryPageTts.belongsTo(StoryPage, { foreignKey: 'story_page_id' });
 // ChildProfile - Story 관계 (0008_create_story_tables.sql에서 child_profile_id 컬럼+FK 확인됨, 활성화)
 ChildProfile.hasMany(Story, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
 Story.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+User.hasMany(StoryGenerationJob, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+StoryGenerationJob.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+ChildProfile.hasMany(StoryGenerationJob, { foreignKey: 'child_profile_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+StoryGenerationJob.belongsTo(ChildProfile, { foreignKey: 'child_profile_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Story.hasMany(StoryGenerationJob, { foreignKey: 'story_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
+StoryGenerationJob.belongsTo(Story, { foreignKey: 'story_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
 
 // 인증/계정 관련 관계
 User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -170,6 +177,7 @@ const db = {
   Event,
   Faq,
   Inquiry,
+  StoryGenerationJob,
 };
 
 module.exports = db;
