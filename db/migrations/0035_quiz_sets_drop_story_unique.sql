@@ -22,18 +22,23 @@ DROP PROCEDURE IF EXISTS `_migration_0035_quiz_sets_drop_story_unique` $$
 
 CREATE PROCEDURE `_migration_0035_quiz_sets_drop_story_unique`()
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'quiz_sets' AND INDEX_NAME = 'uq_story'
-  ) THEN
-    ALTER TABLE `quiz_sets` DROP INDEX `uq_story`;
-  END IF;
-
+  -- fk_quiz_set_story(story_id -> stories.story_id)가 story_id 위의 인덱스를
+  -- 항상 필요로 해서, uq_story가 그 유일한 인덱스인 상태에서 바로 DROP하면
+  -- "Cannot drop index 'uq_story': needed in a foreign key constraint" 에러가 난다.
+  -- 그래서 순서를 바꿔 먼저 대체 인덱스(idx_quiz_sets_story)를 추가해 FK가 그걸
+  -- 쓸 수 있게 한 다음, uq_story를 제거한다.
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'quiz_sets' AND INDEX_NAME = 'idx_quiz_sets_story'
   ) THEN
     ALTER TABLE `quiz_sets` ADD INDEX `idx_quiz_sets_story` (`story_id`);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'quiz_sets' AND INDEX_NAME = 'uq_story'
+  ) THEN
+    ALTER TABLE `quiz_sets` DROP INDEX `uq_story`;
   END IF;
 END $$
 
