@@ -52,4 +52,24 @@ const getQuiz = async (userId, childProfileId, quizSetId) => {
   };
 };
 
-module.exports = { getQuiz };
+/** storyId 기준으로 해당 스토리의 퀴즈를 조회한다 (quizSetId를 몰라도 조회 가능하게). */
+const getQuizByStory = async (userId, childProfileId, storyId) => {
+  await childService.getById(userId, childProfileId);
+
+  const [quizSets] = await pool.execute(
+    `SELECT qs.quiz_set_id, qs.status
+       FROM quiz_sets qs
+       JOIN stories s ON s.story_id = qs.story_id
+      WHERE qs.story_id = ? AND s.child_profile_id = ?`,
+    [storyId, childProfileId]
+  );
+  if (quizSets.length === 0) {
+    const error = new Error('해당 동화의 퀴즈를 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return getQuiz(userId, childProfileId, quizSets[0].quiz_set_id);
+};
+
+module.exports = { getQuiz, getQuizByStory };

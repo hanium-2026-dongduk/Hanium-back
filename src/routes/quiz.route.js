@@ -92,6 +92,7 @@ router.get('/attempts/:attemptId/detail', authenticate, c.attemptDetailValidatio
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
+router.get('/by-story/:storyId', authenticate, c.byStoryValidation, c.byStory);
 router.get('/:quizSetId', authenticate, c.detailValidation, c.detail);
 
 module.exports = router;
