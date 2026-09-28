@@ -1,4 +1,5 @@
 const { GuardianSetting, UsageDailySummary } = require('../models');
+const { Op } = require('sequelize');
 const childService = require('./child.service');
 const { getSeoulDateString } = require('../utils/dateUtils');
 const { runWithDeadlockRetry } = require('../utils/dbRetry');
@@ -134,11 +135,63 @@ const getTodayUsage = async (userId, childProfileId) => {
   };
 };
 
+const DEFAULT_SUMMARY_RANGE_DAYS = 7;
+
+function addDaysToDateString(dateString, days) {
+  const [y, m, d] = dateString.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * 기간별 사용 시간 요약 조회.
+ * from/to를 안 주면 최근 7일(오늘 포함, Asia/Seoul 캘린더 기준)로 기본값을 잡는다.
+ *
+ * @param {number} userId
+ * @param {number} childProfileId
+ * @param {{ from?: string, to?: string }} range - 'YYYY-MM-DD' 문자열
+ */
+const getSummary = async (userId, childProfileId, { from, to } = {}) => {
+  const profile = await childService.getById(userId, childProfileId);
+
+  const todayStr = getSeoulDateString();
+  const toDate = to || todayStr;
+  const fromDate = from || addDaysToDateString(toDate, -(DEFAULT_SUMMARY_RANGE_DAYS - 1));
+
+  if (fromDate > toDate) {
+    const error = new Error('from은 to보다 이후일 수 없습니다.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const rows = await UsageDailySummary.findAll({
+    where: {
+      child_profile_id: profile.child_profile_id,
+      usage_date: { [Op.between]: [fromDate, toDate] },
+    },
+    order: [['usage_date', 'ASC']],
+  });
+
+  const totalAccumulatedSeconds = rows.reduce((sum, r) => sum + r.accumulated_seconds, 0);
+
+  return {
+    from: fromDate,
+    to: toDate,
+    totalAccumulatedSeconds,
+    days: rows.map((r) => ({
+      date: r.usage_date,
+      accumulatedSeconds: r.accumulated_seconds,
+    })),
+  };
+};
+
 module.exports = {
   recordHeartbeat,
   getTodayUsage,
   // utils/dateUtils로 옮겼지만, 이미 이 경로로 가져다 쓰는 곳(middlewares/usageLimit.js)이
   // 있어 재export로 유지한다. 신규 코드는 utils/dateUtils에서 직접 가져올 것.
+  getSummary,
   getSeoulDateString,
   HEARTBEAT_CAP_SECONDS,
 };

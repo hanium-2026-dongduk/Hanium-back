@@ -1,5 +1,5 @@
 const pool = require('../config/db');
-const { VocabularyEntry, QuizAttempt } = require('../models');
+const { VocabularyEntry, QuizAttempt, StoryReadLog } = require('../models');
 const { fn, col } = require('sequelize');
 const childService = require('./child.service');
 
@@ -20,6 +20,10 @@ async function getSummary(userId, childProfileId) {
     [childProfileId]
   );
 
+  const readStoryCount = await StoryReadLog.count({
+    where: { child_profile_id: childProfileId },
+  });
+
   const vocabularyCount = await VocabularyEntry.count({
     where: { child_profile_id: childProfileId },
   });
@@ -37,6 +41,7 @@ async function getSummary(userId, childProfileId) {
   return {
     storyCount: storyCountResult[0].count,
     favoriteStoryCount: favoriteCountResult[0].count,
+    readStoryCount,
     vocabularyCount,
     quizStats: {
       totalAttempts: Number(quizStatsRow.totalAttempts) || 0,
