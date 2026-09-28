@@ -5,13 +5,16 @@ const childService = require('./child.service');
 const getQuiz = async (userId, childProfileId, quizSetId) => {
   await childService.getById(userId, childProfileId);
 
+    // story JOIN을 쓰면 단어장 기반(story_id NULL) 퀴즈는 절대 매치되지 않는다
+  // (NULL = qs.story_id 비교는 항상 거짓). quiz_sets.child_profile_id를 직접 써서
+  // story 기반/단어장 기반 둘 다 소유권 확인이 되게 한다.
   const [quizSets] = await pool.execute(
     `SELECT qs.quiz_set_id, qs.status
        FROM quiz_sets qs
-       JOIN stories s ON s.story_id = qs.story_id
-      WHERE qs.quiz_set_id = ? AND s.child_profile_id = ?`,
+      WHERE qs.quiz_set_id = ? AND qs.child_profile_id = ?`,
     [quizSetId, childProfileId]
   );
+  
   if (quizSets.length === 0) {
     const error = new Error('퀴즈를 찾을 수 없습니다.');
     error.statusCode = 404;

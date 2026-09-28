@@ -230,9 +230,12 @@ async function saveQuizData({ childProfileId, storyId, sourceType, quizData, exi
 async function generateFromStory(childProfileId, storyId) {
   const storyText = await getStoryFullText(childProfileId, storyId);
 
+  // 0035에서 story_id의 DB 레벨 UNIQUE를 없앤 뒤로는 같은 story_id에 단어장 기반
+  // quiz_set이 같이 있을 수 있어, where에 source_type까지 넣어야 story 기반
+  // quiz_set만 재사용(findOrCreate)한다.
   const [quizSet] = await QuizSet.findOrCreate({
-    where: { story_id: storyId },
-    defaults: { source_type: SOURCE_STORY, child_profile_id: childProfileId, status: 'pending' },
+    where: { story_id: storyId, source_type: SOURCE_STORY },
+    defaults: { child_profile_id: childProfileId, status: 'pending' },
   });
 
   let quizData;
