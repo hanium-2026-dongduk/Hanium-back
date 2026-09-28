@@ -5,16 +5,21 @@ const childService = require('./child.service');
 const getQuiz = async (userId, childProfileId, quizSetId) => {
   await childService.getById(userId, childProfileId);
 
-    // story JOIN을 쓰면 단어장 기반(story_id NULL) 퀴즈는 절대 매치되지 않는다
-  // (NULL = qs.story_id 비교는 항상 거짓). quiz_sets.child_profile_id를 직접 써서
-  // story 기반/단어장 기반 둘 다 소유권 확인이 되게 한다.
+  // INNER JOIN stories만 쓰면 단어장 기반(story_id NULL) 퀴즈는 절대 매치되지 않는다
+  // (NULL = qs.story_id 비교는 항상 거짓). 반대로 quiz_sets.child_profile_id만 쓰면,
+  // 그 컬럼이 비어있는 story 기반 quiz_set(예: 0034 이전 데이터나 테스트 픽스처처럼
+  // QuizSet을 직접 생성해 child_profile_id를 안 채운 경우)을 못 찾는다.
+  // 그래서 LEFT JOIN으로 story를 "있으면" 같이 보되, 소유권은 quiz_sets.child_profile_id
+  // 또는 story의 child_profile_id 둘 중 하나라도 맞으면 통과시킨다.
   const [quizSets] = await pool.execute(
     `SELECT qs.quiz_set_id, qs.status
        FROM quiz_sets qs
-      WHERE qs.quiz_set_id = ? AND qs.child_profile_id = ?`,
-    [quizSetId, childProfileId]
+       LEFT JOIN stories s ON s.story_id = qs.story_id
+      WHERE qs.quiz_set_id = ?
+        AND (qs.child_profile_id = ? OR s.child_profile_id = ?)`,
+    [quizSetId, childProfileId, childProfileId]
   );
-  
+
   if (quizSets.length === 0) {
     const error = new Error('퀴즈를 찾을 수 없습니다.');
     error.statusCode = 404;
