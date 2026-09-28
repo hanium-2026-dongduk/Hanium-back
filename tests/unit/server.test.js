@@ -1,6 +1,10 @@
 describe('server.js start()', () => {
   beforeEach(() => {
     jest.resetModules();
+    jest.doMock('../../src/config/db', () => ({ end: jest.fn().mockResolvedValue(undefined) }));
+    jest.doMock('../../src/services/storyGenerationWorker', () => ({
+      startStoryGenerationWorker: jest.fn(() => jest.fn()),
+    }));
   });
 
   afterEach(() => {
@@ -8,6 +12,8 @@ describe('server.js start()', () => {
     jest.dontMock('../../src/config/database');
     jest.dontMock('../../src/app');
     jest.dontMock('../../src/config/env');
+    jest.dontMock('../../src/config/db');
+    jest.dontMock('../../src/services/storyGenerationWorker');
     // start()가 process에 등록한 시그널 리스너는 모듈을 리셋해도 남는다.
     // 지우지 않으면 다음 테스트에서 SIGTERM을 쏠 때 앞 테스트의 리스너까지 함께 발동한다.
     process.removeAllListeners('SIGINT');

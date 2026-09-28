@@ -16,7 +16,7 @@ const BADGE_STATUS = {
   EARNED: 'earned',
   /** 아직 조건 미달 */
   LOCKED: 'locked',
-  /** 판정 기능이 아직 없음(개발자 B 데이터 대기) */
+  /** 판정 기능이 아직 없음(향후 미지원 배지를 추가할 때 사용) */
   COMING_SOON: 'coming_soon',
 };
 
@@ -170,7 +170,7 @@ const evaluateAndAward = async (childProfileId, { transaction } = {}) => {
  * 실패하면 안 된다. 그래서 **본래 동작의 트랜잭션이 커밋된 뒤에** 이걸 부른다.
  * 이번에 못 받았어도 다음 이벤트 때 조건을 다시 재므로 배지가 영영 누락되지는 않는다.
  *
- * 개발자 B도 동화 읽기·퀴즈 정답 처리를 커밋한 뒤 이 함수를 부르면 된다.
+ * 동화 읽기·퀴즈 정답·단어 저장 처리도 데이터 저장을 마친 뒤 이 함수를 부른다.
  *
  * @param {number} childProfileId
  * @returns {Promise<string[]>} 이번에 새로 받은 badge_code 목록 (실패 시 빈 배열)

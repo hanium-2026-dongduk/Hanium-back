@@ -1,9 +1,16 @@
-const { param, validationResult } = require('express-validator');
+const { body, param, validationResult } = require('express-validator');
 const missionService = require('../services/mission.service');
 const response = require('../utils/response');
 
 const progressParamValidation = [
   param('childId').isInt({ min: 1 }).withMessage('childId는 양의 정수여야 합니다.').toInt(),
+];
+
+const wordClickValidation = [
+  body('child_profile_id')
+    .isInt({ min: 1 })
+    .withMessage('child_profile_id는 양의 정수여야 합니다.')
+    .toInt(),
 ];
 
 /**
@@ -41,4 +48,28 @@ const getProgress = async (req, res, next) => {
   }
 };
 
-module.exports = { getCatalog, progressParamValidation, getProgress };
+const recordWordClick = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
+    }
+
+    const result = await missionService.recordWordClick(
+      req.user.user_id,
+      req.body.child_profile_id
+    );
+    return response.success(res, 200, '단어 클릭이 기록되었습니다.', result);
+  } catch (err) {
+    if (err.statusCode) return response.error(res, err.statusCode, err.message);
+    next(err);
+  }
+};
+
+module.exports = {
+  getCatalog,
+  progressParamValidation,
+  getProgress,
+  wordClickValidation,
+  recordWordClick,
+};

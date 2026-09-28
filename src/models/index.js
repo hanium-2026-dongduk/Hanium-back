@@ -23,10 +23,18 @@ const QuizAttempt = require('./quizAttempt.model');
 const ChildBadge = require('./childBadge.model');
 const StickerSend = require('./stickerSend.model');
 const StoryReadLog = require('./storyReadLog.model');
+const Notice = require('./notice.model');
+const NoticeRead = require('./noticeRead.model');
+const Event = require('./event.model');
+const Faq = require('./faq.model');
+const Inquiry = require('./inquiry.model');
+const StoryGenerationJob = require('./storyGenerationJob.model');
 
 // 동화 생성 관련 관계
 Character.hasMany(Story, { foreignKey: 'character_id', onDelete: 'RESTRICT' });
 Story.belongsTo(Character, { foreignKey: 'character_id' });
+ChildProfile.hasMany(Character, { foreignKey: 'child_profile_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
+Character.belongsTo(ChildProfile, { foreignKey: 'child_profile_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
 
 Story.hasMany(StoryPage, { foreignKey: 'story_id', onDelete: 'CASCADE' });
 StoryPage.belongsTo(Story, { foreignKey: 'story_id' });
@@ -40,6 +48,12 @@ StoryPageTts.belongsTo(StoryPage, { foreignKey: 'story_page_id' });
 // ChildProfile - Story 관계 (0008_create_story_tables.sql에서 child_profile_id 컬럼+FK 확인됨, 활성화)
 ChildProfile.hasMany(Story, { foreignKey: 'child_profile_id', onDelete: 'CASCADE' });
 Story.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
+User.hasMany(StoryGenerationJob, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+StoryGenerationJob.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+ChildProfile.hasMany(StoryGenerationJob, { foreignKey: 'child_profile_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+StoryGenerationJob.belongsTo(ChildProfile, { foreignKey: 'child_profile_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Story.hasMany(StoryGenerationJob, { foreignKey: 'story_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
+StoryGenerationJob.belongsTo(Story, { foreignKey: 'story_id', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
 
 // 인증/계정 관련 관계
 User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -124,6 +138,13 @@ StoryReadLog.belongsTo(ChildProfile, { foreignKey: 'child_profile_id' });
 Story.hasMany(StoryReadLog, { foreignKey: 'story_id', onDelete: 'CASCADE' });
 StoryReadLog.belongsTo(Story, { foreignKey: 'story_id' });
 
+Notice.hasMany(NoticeRead, { foreignKey: 'notice_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+NoticeRead.belongsTo(Notice, { foreignKey: 'notice_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+User.hasMany(NoticeRead, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+NoticeRead.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+User.hasMany(Inquiry, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Inquiry.belongsTo(User, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
 
 const db = {
   sequelize,
@@ -151,6 +172,12 @@ const db = {
   ChildBadge,
   StickerSend,
   StoryReadLog,
+  Notice,
+  NoticeRead,
+  Event,
+  Faq,
+  Inquiry,
+  StoryGenerationJob,
 };
 
 module.exports = db;

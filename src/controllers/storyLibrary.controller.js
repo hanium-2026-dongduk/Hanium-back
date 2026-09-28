@@ -37,9 +37,9 @@ const list = async (req, res, next) => {
 
     const result = await storyLibraryService.listStories(child_profile_id, {
       sort,
-      favoriteOnly: favorite,
-      page,
-      limit,
+      favoriteOnly: favorite === 'true',
+      page: page === undefined ? undefined : Number(page),
+      limit: limit === undefined ? undefined : Number(limit),
     });
 
     return response.success(res, 200, '동화 목록을 조회했습니다.', result);
@@ -87,7 +87,10 @@ const explore = async (req, res, next) => {
     if (!errors.isEmpty()) return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
 
     const { page, limit } = req.query;
-    const result = await storyLibraryService.exploreStories({ page, limit });
+    const result = await storyLibraryService.exploreStories({
+      page: page === undefined ? undefined : Number(page),
+      limit: limit === undefined ? undefined : Number(limit),
+    });
     return response.success(res, 200, '공개 동화 목록을 조회했습니다.', result);
   } catch (err) {
     next(err);

@@ -86,6 +86,21 @@ jobs:
       - name: 마이그레이션 스모크
         run: npm run smoke:migration
 
+      - name: 고객지원 API 스모크 (마이그레이션된 MySQL)
+        env:
+          DB_NAME: hanium_migration_check
+        run: npm run smoke:support
+
+      - name: 동화 연동 API 스모크 (마이그레이션된 MySQL)
+        env:
+          DB_NAME: hanium_migration_check
+        run: npm run smoke:story40
+
+      - name: 동화 생성 작업 스모크 (마이그레이션된 MySQL)
+        env:
+          DB_NAME: hanium_migration_check
+        run: npm run smoke:story-generation
+
       # 아래 셋은 같은 DB에 sync({force:true})를 돌리므로 반드시 순차로 실행한다.
       - name: Week1 스모크 (인증)
         run: npm run smoke
@@ -95,3 +110,6 @@ jobs:
 
       - name: Week3 스모크 (출석·미션·리워드·배지)
         run: npm run smoke:week3
+
+      - name: Week5 스모크 (콘텐츠 전체 흐름)
+        run: npm run smoke:week5

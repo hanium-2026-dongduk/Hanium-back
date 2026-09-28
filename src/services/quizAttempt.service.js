@@ -6,7 +6,8 @@ const { withTransaction } = require('../utils/dbRetry');
 
 const badgeService = require('./badge.service');
 
-const POINTS_PER_CORRECT_ANSWER = 5; // 임시값, 기획 확정 필요
+// 정책 확정값. 퀴즈 참여 미션(20점)과 별개로 정답 정확도에 보상한다.
+const POINTS_PER_CORRECT_ANSWER = 5;
 
 async function submitAttempt({ userId, childProfileId, quizSetId, answers }) {
   await childService.getById(userId, childProfileId);

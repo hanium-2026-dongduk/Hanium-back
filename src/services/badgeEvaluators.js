@@ -1,4 +1,11 @@
-const { AttendanceLog, DailyMission, RewardWallet } = require('../models');
+const {
+  AttendanceLog,
+  DailyMission,
+  RewardWallet,
+  StoryReadLog,
+  QuizAttempt,
+  VocabularyEntry,
+} = require('../models');
 
 /**
  * 배지 조건 판정기 모음 (RW04_ACH_02).
@@ -6,12 +13,6 @@ const { AttendanceLog, DailyMission, RewardWallet } = require('../models');
  * 카탈로그의 `condition.type` → 여기의 키. 각 함수는 자녀의 **현재 수치**를 돌려주고,
  * 수여 여부는 badgeService가 `>= condition.value`로 판단한다. 판정기가 조건값을 알 필요는
  * 없다 — 같은 지표를 쓰는 배지가 여러 개(streak_7, streak_10)라 한 번만 재면 되기 때문이다.
- *
- * ## 새 판정기를 추가할 때
- *
- * 개발자 B의 테이블(동화·퀴즈·단어장)이 준비되면 여기에 함수를 추가하고,
- * `badgeCatalog.js`에서 해당 배지의 `evaluable`을 true로 바꾸면 된다.
- * 그 전까지 그 배지들은 목록에만 보이고("곧 열려요") 판정 대상에서 빠진다.
  *
  * 모든 판정기는 같은 시그니처를 지킨다.
  *   (childProfileId, { transaction }) => Promise<number>
@@ -74,14 +75,40 @@ const mission_completed_total = async (childProfileId, { transaction } = {}) => 
   });
 };
 
+/** 서로 다른 동화를 읽은 수. story_read_logs는 자녀·동화당 1행이다. */
+const story_read_total = async (childProfileId, { transaction } = {}) => {
+  return StoryReadLog.count({
+    where: { child_profile_id: childProfileId },
+    transaction,
+  });
+};
+
+/** 모든 퀴즈 풀이에서 맞힌 문항 수의 누계. */
+const quiz_correct_total = async (childProfileId, { transaction } = {}) => {
+  const total = await QuizAttempt.sum('correct_count', {
+    where: { child_profile_id: childProfileId },
+    transaction,
+  });
+  return total || 0;
+};
+
+/** 현재 단어장에 저장된 단어 수. 삭제한 단어는 세지 않는다. */
+const vocabulary_saved_total = async (childProfileId, { transaction } = {}) => {
+  return VocabularyEntry.count({
+    where: { child_profile_id: childProfileId },
+    transaction,
+  });
+};
+
 const EVALUATORS = {
   attendance_total,
   streak_days,
   total_points,
   level,
   mission_completed_total,
-  // 개발자 B 데이터 대기:
-  //   story_read_total, quiz_correct_total, vocabulary_saved_total
+  story_read_total,
+  quiz_correct_total,
+  vocabulary_saved_total,
 };
 
 /**

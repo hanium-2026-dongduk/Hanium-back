@@ -13,9 +13,14 @@ jest.mock('../../src/services/reward.service', () => ({
   addPoints: jest.fn(),
 }));
 
+jest.mock('../../src/services/badge.service', () => ({
+  evaluateQuietly: jest.fn(),
+}));
+
 const { DailyMission, sequelize } = require('../../src/models');
 const childService = require('../../src/services/child.service');
 const rewardService = require('../../src/services/reward.service');
+const badgeService = require('../../src/services/badge.service');
 const missionService = require('../../src/services/mission.service');
 const { MISSION_CATALOG } = require('../../src/config/missionCatalog');
 const { getSeoulDateString } = require('../../src/utils/dateUtils');
@@ -45,6 +50,37 @@ const mockRewardGranted = () => {
 };
 
 describe('mission.service', () => {
+  describe('recordWordClick', () => {
+    test('소유권 확인 후 단어 클릭 미션을 기록하고 응답용 진행도를 반환한다', async () => {
+      childService.getById.mockResolvedValue({ child_profile_id: 1 });
+      const mission = buildMission({
+        mission_type: 'word_clicked',
+        target_count: 5,
+        progress_count: 4,
+        reward_points: 15,
+      });
+      DailyMission.findOne.mockResolvedValue(mission);
+      rewardService.addPoints.mockResolvedValue({ pointsAdded: 15 });
+      badgeService.evaluateQuietly.mockResolvedValue(['mission_10']);
+
+      const result = await missionService.recordWordClick(7, 1);
+
+      expect(childService.getById).toHaveBeenCalledWith(7, 1);
+      expect(mission.progress_count).toBe(5);
+      expect(result).toEqual({
+        mission: {
+          missionType: 'word_clicked',
+          targetCount: 5,
+          progressCount: 5,
+          rewardPoints: 15,
+          status: 'rewarded',
+        },
+        pointsEarned: 15,
+        badgesAwarded: ['mission_10'],
+      });
+    });
+  });
+
   describe('recordProgress — 입력 검증', () => {
     test('카탈로그에 없는 미션 유형이면 400을 던진다', async () => {
       await expect(

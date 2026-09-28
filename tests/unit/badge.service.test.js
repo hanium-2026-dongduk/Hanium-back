@@ -3,6 +3,9 @@ jest.mock('../../src/models', () => ({
   AttendanceLog: { count: jest.fn() },
   DailyMission: { count: jest.fn() },
   RewardWallet: { findOne: jest.fn() },
+  StoryReadLog: { count: jest.fn() },
+  QuizAttempt: { sum: jest.fn() },
+  VocabularyEntry: { count: jest.fn() },
   sequelize: {
     transaction: jest.fn((cb) => cb({ LOCK: { UPDATE: 'UPDATE' } })),
   },
@@ -12,7 +15,15 @@ jest.mock('../../src/services/child.service', () => ({
   getById: jest.fn(),
 }));
 
-const { ChildBadge, AttendanceLog, DailyMission, RewardWallet } = require('../../src/models');
+const {
+  ChildBadge,
+  AttendanceLog,
+  DailyMission,
+  RewardWallet,
+  StoryReadLog,
+  QuizAttempt,
+  VocabularyEntry,
+} = require('../../src/models');
 const childService = require('../../src/services/child.service');
 const badgeService = require('../../src/services/badge.service');
 const { BADGE_CATALOG, EVALUABLE_BADGES } = require('../../src/config/badgeCatalog');
@@ -20,10 +31,22 @@ const { BADGE_CATALOG, EVALUABLE_BADGES } = require('../../src/config/badgeCatal
 const CHILD_ID = 1;
 
 /** 판정기가 읽는 값들을 한 번에 세팅한다. */
-const mockMetrics = ({ attendance = 0, missions = 0, points = 0, level = 1, streak = 0 } = {}) => {
+const mockMetrics = ({
+  attendance = 0,
+  missions = 0,
+  points = 0,
+  level = 1,
+  streak = 0,
+  stories = 0,
+  quizCorrect = 0,
+  vocabulary = 0,
+} = {}) => {
   AttendanceLog.count.mockResolvedValue(attendance);
   DailyMission.count.mockResolvedValue(missions);
   RewardWallet.findOne.mockResolvedValue({ points, level, streak_days: streak });
+  StoryReadLog.count.mockResolvedValue(stories);
+  QuizAttempt.sum.mockResolvedValue(quizCorrect);
+  VocabularyEntry.count.mockResolvedValue(vocabulary);
 };
 
 const mockOwned = (codes) => {
@@ -59,7 +82,7 @@ describe('배지 카탈로그', () => {
     const { badges } = badgeService.getCatalog();
 
     expect(badges).toHaveLength(BADGE_CATALOG.length);
-    expect(badges.some((b) => b.evaluable === false)).toBe(true);
+    expect(badges.every((b) => b.evaluable === true)).toBe(true);
     expect(badges[0]).toHaveProperty('condition.value');
   });
 });
@@ -116,16 +139,13 @@ describe('배지 수여는', () => {
     expect(awarded).not.toContain('attendance_first');
   });
 
-  test('판정 불가(evaluable: false) 배지는 조건과 무관하게 주지 않는다', async () => {
+  test('학습 활동 배지 3종을 실제 누적 데이터로 준다', async () => {
     mockOwned([]);
-    // 모든 지표를 아주 크게 줘도 story_10 등은 판정 대상이 아니다.
-    mockMetrics({ attendance: 9999, missions: 9999, points: 9999, level: 99, streak: 9999 });
+    mockMetrics({ stories: 10, quizCorrect: 50, vocabulary: 100 });
 
     const { awarded } = await badgeService.evaluateAndAward(CHILD_ID);
 
-    expect(awarded).not.toContain('story_10');
-    expect(awarded).not.toContain('quiz_50');
-    expect(awarded).not.toContain('vocabulary_100');
+    expect(awarded).toEqual(expect.arrayContaining(['story_10', 'quiz_50', 'vocabulary_100']));
   });
 
   test('동시 실행으로 다른 쪽이 먼저 넣었으면 UNIQUE 오류를 삼키고 넘어간다', async () => {
@@ -187,7 +207,7 @@ describe('자녀 배지 현황은', () => {
     childService.getById.mockResolvedValue({ child_profile_id: CHILD_ID });
   });
 
-  test('획득/미획득/곧 열림을 구분해서 준다', async () => {
+  test('획득/미획득 상태를 구분해서 준다', async () => {
     mockOwned(['attendance_first']);
 
     const result = await badgeService.getChildBadges(10, CHILD_ID);
@@ -196,8 +216,7 @@ describe('자녀 배지 현황은', () => {
     expect(byCode.attendance_first.status).toBe('earned');
     expect(byCode.attendance_first.awarded_at).not.toBeNull();
     expect(byCode.streak_10.status).toBe('locked');
-    // 판정 기능이 없는 배지는 "아직 못 딴 것"과 구분된다.
-    expect(byCode.story_10.status).toBe('coming_soon');
+    expect(byCode.story_10.status).toBe('locked');
   });
 
   test('획득 수와 전체 수를 함께 준다', async () => {

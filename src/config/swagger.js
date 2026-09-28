@@ -21,6 +21,18 @@ const envelope = (dataSchema) => ({
   },
 });
 
+const supportList = (item) => envelope({
+  type: 'object',
+  properties: {
+    items: { type: 'array', items: { $ref: `#/components/schemas/${item}` } },
+    pagination: { $ref: '#/components/schemas/Pagination' },
+  },
+});
+const supportDetail = (key, item) => envelope({
+  type: 'object',
+  properties: { [key]: { $ref: `#/components/schemas/${item}` } },
+});
+
 const options = {
   definition: {
     openapi: '3.0.3',
@@ -49,6 +61,11 @@ const options = {
       { name: '리워드', description: '포인트·레벨·이력 (MN02, MP02, RW02~RW04)' },
       { name: '배지', description: '조건 기반 배지 (RW04_ACH_02, MP02_RWD_03)' },
       { name: '스티커', description: '칭찬 스티커 (PD04_STK_01, MP05_STK_01)' },
+      { name: '퀴즈', description: '동화 기반 퀴즈 생성·조회·채점·풀이 기록' },
+      { name: '단어장', description: '단어 저장·조회·즐겨찾기·삭제' },
+      { name: '캐릭터', description: '공용 프리셋과 자녀별 캐릭터 조회·생성' },
+      { name: '동화 생성', description: '동화 생성 작업과 상세 조회' },
+      { name: '고객지원', description: '공지·이벤트·FAQ·1:1 문의 (CS01~CS04)' },
       { name: '기타', description: '헬스체크' },
     ],
     components: {
@@ -126,6 +143,63 @@ const options = {
             totalPages: { type: 'integer', example: 3 },
           },
         },
+        Notice: {
+          type: 'object',
+          properties: {
+            notice_id: { type: 'integer' },
+            title: { type: 'string' },
+            content: { type: 'string' },
+            published_at: { type: 'string', format: 'date-time' },
+            is_read: { type: 'boolean' },
+          },
+        },
+        Event: {
+          type: 'object',
+          properties: {
+            event_id: { type: 'integer' },
+            title: { type: 'string' },
+            content: { type: 'string' },
+            starts_at: { type: 'string', format: 'date-time' },
+            ends_at: { type: 'string', format: 'date-time' },
+            status: { type: 'string', enum: ['ongoing', 'ended'] },
+          },
+        },
+        Faq: {
+          type: 'object',
+          properties: {
+            faq_id: { type: 'integer' },
+            question: { type: 'string' },
+            answer: { type: 'string' },
+            is_recommended: { type: 'boolean' },
+          },
+        },
+        Inquiry: {
+          type: 'object',
+          properties: {
+            inquiry_id: { type: 'integer' },
+            title: { type: 'string' },
+            content: { type: 'string' },
+            status: { type: 'string', enum: ['pending', 'answered'] },
+            answer: { type: 'string', nullable: true },
+            answered_at: { type: 'string', format: 'date-time', nullable: true },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        NoticeListResponse: supportList('Notice'),
+        NoticeDetailResponse: supportDetail('notice', 'Notice'),
+        NoticeReadResponse: envelope({
+          type: 'object',
+          properties: {
+            notice_id: { type: 'integer' },
+            is_read: { type: 'boolean' },
+            read_at: { type: 'string', format: 'date-time' },
+          },
+        }),
+        EventListResponse: supportList('Event'),
+        EventDetailResponse: supportDetail('event', 'Event'),
+        FaqListResponse: supportList('Faq'),
+        InquiryListResponse: supportList('Inquiry'),
+        InquiryDetailResponse: supportDetail('inquiry', 'Inquiry'),
       },
       responses: {
         Unauthorized: {
@@ -144,12 +218,25 @@ const options = {
           description: '입력값 오류',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
         },
+        Conflict: {
+          description: '이미 다른 요청에 사용한 Idempotency-Key',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+        },
         TooManyRequests: {
           description: '요청이 너무 잦음 (쿨다운·시도 횟수 초과)',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
         },
       },
       parameters: {
+        supportId: {
+          name: 'id', in: 'path', required: true, schema: { type: 'integer', minimum: 1 },
+        },
+        supportPage: {
+          name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 },
+        },
+        supportLimit: {
+          name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+        },
         childId: {
           name: 'childId',
           in: 'path',

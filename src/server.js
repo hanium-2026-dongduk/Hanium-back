@@ -1,6 +1,8 @@
 const app = require('./app');
 const env = require('./config/env');
 const sequelize = require('./config/database');
+const pool = require('./config/db');
+const { startStoryGenerationWorker } = require('./services/storyGenerationWorker');
 
 /** 종료 신호를 받은 뒤 강제로 끊기까지 기다리는 시간. PM2의 kill_timeout보다 짧아야 한다. */
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -14,8 +16,9 @@ const SHUTDOWN_TIMEOUT_MS = 10_000;
  * @param {import('http').Server} server
  * @param {string} signal
  */
-const shutdown = (server, signal) => {
+const shutdown = (server, signal, stopWorker) => {
   console.log(`${signal} 수신 — 새 요청을 받지 않고 진행 중인 요청을 마칩니다.`);
+  stopWorker();
 
   // 아무리 기다려도 안 끝나는 요청이 있으면(느린 외부 호출 등) 강제로 종료한다.
   // 이 타이머가 프로세스를 붙잡지 않도록 unref한다.
@@ -27,7 +30,7 @@ const shutdown = (server, signal) => {
 
   server.close(async () => {
     try {
-      await sequelize.close();
+      await Promise.all([sequelize.close(), pool.end()]);
       console.log('DB 연결을 닫았습니다.');
     } catch (err) {
       console.error('DB 연결을 닫는 중 오류:', err.message);
@@ -56,10 +59,11 @@ const start = async () => {
     // 다음 워커를 재시작한다 — reload 중 모든 워커가 동시에 죽는 것을 막는다.
     if (process.send) process.send('ready');
   });
+  const stopWorker = startStoryGenerationWorker();
 
   // SIGINT: PM2 reload / Ctrl+C,  SIGTERM: PM2 stop / 컨테이너 종료
   ['SIGINT', 'SIGTERM'].forEach((signal) => {
-    process.on(signal, () => shutdown(server, signal));
+    process.on(signal, () => shutdown(server, signal, stopWorker));
   });
 
   return server;

@@ -8,7 +8,7 @@ const StoryPage = sequelize.define('StoryPage', {
     autoIncrement: true,
   },
   story_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.BIGINT,
     allowNull: false,
   },
   page_number: {
