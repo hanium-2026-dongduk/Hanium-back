@@ -1,16 +1,71 @@
 const { QuizAttempt, QuizQuestion, QuizOption } = require('../models');
+const { Op } = require('sequelize');
 const childService = require('./child.service');
 const rewardService = require('./reward.service');
 const missionService = require('./mission.service'); // A의 Week3 산출물
 const { withTransaction } = require('../utils/dbRetry');
-
 const badgeService = require('./badge.service');
 
 // 정책 확정값. 퀴즈 참여 미션(20점)과 별개로 정답 정확도에 보상한다.
 const POINTS_PER_CORRECT_ANSWER = 5;
 
+// 네트워크 재시도로 인한 "동일 제출" 중복 처리 방지용 시간창(초).
+// 프론트가 Idempotency-Key를 아직 안 보내는 상황에서의 임시 방어책 — 같은 자녀가
+// 같은 퀴즈셋에 "완전히 같은 답안"으로 이 시간 안에 다시 제출하면 재시도로 간주하고
+// 기존 결과를 그대로 돌려준다(재채점/재적립 없음). 아이가 실제로 "다시 풀기"를 누르는
+// 경우는 결과 확인 후 눌러서 이 시간창보다 늦게 들어오므로 정상적으로 새 시도로 처리된다.
+const DUPLICATE_SUBMIT_WINDOW_SECONDS = 10;
+
+function normalizeAnswers(answers) {
+  return [...answers]
+    .map((a) => ({
+      questionId: Number(a.questionId),
+      selectedOptionId: a.selectedOptionId == null ? null : Number(a.selectedOptionId),
+    }))
+    .sort((a, b) => a.questionId - b.questionId);
+}
+
+async function findRecentDuplicateAttempt(childProfileId, quizSetId, answers) {
+  const cutoff = new Date(Date.now() - DUPLICATE_SUBMIT_WINDOW_SECONDS * 1000);
+
+  const recentAttempts = await QuizAttempt.findAll({
+    where: {
+      child_profile_id: childProfileId,
+      quiz_set_id: quizSetId,
+      submitted_at: { [Op.gte]: cutoff },
+    },
+    order: [['submitted_at', 'DESC']],
+  });
+
+  if (recentAttempts.length === 0) return null;
+
+  const incomingSignature = JSON.stringify(normalizeAnswers(answers));
+
+  return (
+    recentAttempts.find((attempt) => {
+      const storedSignature = JSON.stringify(normalizeAnswers(attempt.answers));
+      return storedSignature === incomingSignature;
+    }) || null
+  );
+}
+
 async function submitAttempt({ userId, childProfileId, quizSetId, answers }) {
   await childService.getById(userId, childProfileId);
+
+  // 재시도로 인한 중복 제출 방어 — 채점/트랜잭션 시작 전에 먼저 확인한다.
+  const duplicate = await findRecentDuplicateAttempt(childProfileId, quizSetId, answers);
+  if (duplicate) {
+    return {
+      attemptId: duplicate.quiz_attempt_id,
+      totalQuestions: duplicate.total_questions,
+      correctCount: duplicate.correct_count,
+      score: duplicate.score,
+      answers: duplicate.answers,
+      pointsEarned: 0, // 이미 원본 제출에서 지급됨 — 재지급하지 않음
+      leveledUp: false,
+      alreadySubmitted: true,
+    };
+  }
 
   const questions = await QuizQuestion.findAll({
     where: { quiz_set_id: quizSetId },
@@ -68,7 +123,6 @@ async function submitAttempt({ userId, childProfileId, quizSetId, answers }) {
       });
     }
 
-    // Week3 A 설계문서 6절 계약: 미션 진행도도 같은 트랜잭션에서 갱신
     await missionService.recordProgress({
       childProfileId,
       eventType: 'quiz_answered',
@@ -89,10 +143,8 @@ async function submitAttempt({ userId, childProfileId, quizSetId, answers }) {
 
   // 배지 판정은 트랜잭션 밖, 커밋 후 호출 (A 문서: "트랜잭션 안에서 부르지 마세요 —
   // 배지 판정 실패가 본래 동작을 롤백시킵니다"). 실패해도 예외를 삼키고 [] 반환.
- 
-  
-const badgesAwarded = await badgeService.evaluateQuietly(childProfileId);
-return { ...result, badgesAwarded };
+  const badgesAwarded = await badgeService.evaluateQuietly(childProfileId);
+  return { ...result, badgesAwarded };
 }
 
 async function listAttempts(userId, childProfileId, { page = 1, limit = 20 } = {}) {
