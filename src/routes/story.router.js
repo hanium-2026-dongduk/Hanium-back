@@ -16,7 +16,7 @@ const { Op } = require('sequelize');
 const statusError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
 async function resolveStoryInput(req) {
-  const { characterId, backgroundId, background, mainEventId, mainEvent, childAge, childProfileId } = req.body;
+  const { characterId, backgroundId, background, mainEventId, mainEvent, childAge, childProfileId, imageStyle, keyword } = req.body;
   if (!Number.isSafeInteger(Number(childProfileId)) || Number(childProfileId) < 1) {
     throw statusError(400, 'childProfileId가 필요합니다.');
   }
@@ -48,6 +48,15 @@ async function resolveStoryInput(req) {
     throw statusError(400, 'childAge는 1~18 사이의 정수여야 합니다.');
   }
 
+  // back#40 6번: 그림체·키워드는 선택값. 있으면 형식만 검증하고, 저장은 안 하고
+  // generateStoryPipeline 프롬프트에만 반영한다(스키마 변경 불필요).
+  if (imageStyle !== undefined && (typeof imageStyle !== 'string' || imageStyle.length > 50)) {
+    throw statusError(400, 'imageStyle은 50자 이하의 문자열이어야 합니다.');
+  }
+  if (keyword !== undefined && (typeof keyword !== 'string' || keyword.length > 500)) {
+    throw statusError(400, 'keyword는 500자 이하의 문자열이어야 합니다.');
+  }
+
   return {
     input: {
       childProfileId: Number(childProfileId),
@@ -55,6 +64,8 @@ async function resolveStoryInput(req) {
       childAge: age,
       background: resolvedBackground,
       mainEvent: resolvedMainEvent,
+      ...(imageStyle ? { imageStyle } : {}),
+      ...(keyword ? { keyword } : {}),
     },
     character,
   };
@@ -87,6 +98,8 @@ async function resolveStoryInput(req) {
  *               background: { type: string, maxLength: 255 }
  *               mainEventId: { type: string, description: 사건 프리셋 ID. mainEvent와 둘 중 하나 필요 }
  *               mainEvent: { type: string, maxLength: 255 }
+ *               imageStyle: { type: string, maxLength: 50, description: '그림체 (예: 아동풍, 리얼풍, 수채화풍, 3D 애니메이션)' }
+ *               keyword: { type: string, maxLength: 500, description: '아이가 입력한 짧은 상세 이야기' }
  *     responses:
  *       201: { description: 헤더 생략 시 동기 생성 결과를 data에 반환 }
  *       202: { description: 비동기 작업의 jobId·status·storyId를 data에 반환. Location 헤더에 조회 경로 포함 }
@@ -113,7 +126,10 @@ router.post('/', authenticate, async (req, res, next) => {
       childAge: input.childAge,
       character,
       setting: { background: input.background, mainEvent: input.mainEvent },
+      imageStyle: input.imageStyle,
+      keyword: input.keyword,
     });
+
     const savedStory = await saveStoryWithTransaction({ ...input, aiStory });
 
     return response.success(res, 201, '동화가 생성되었습니다.', {
@@ -149,7 +165,7 @@ router.post('/', authenticate, async (req, res, next) => {
  *         name: favorite
  *         schema: { type: boolean }
  *     responses:
- *       200: { description: 동화 목록과 pagination을 data에 반환 }
+ *       200: { description: '동화 목록(storyId·title·isFavorite·coverImageUrl·createdAt)과 pagination을 data에 반환. coverImageUrl은 첫 페이지 삽화가 없으면 null' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       404: { $ref: '#/components/responses/NotFound' }

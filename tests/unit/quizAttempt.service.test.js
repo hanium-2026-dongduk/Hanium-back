@@ -1,5 +1,10 @@
 jest.mock('../../src/models', () => ({
-  QuizAttempt: { create: jest.fn(), findAndCountAll: jest.fn(), findByPk: jest.fn() },
+  QuizAttempt: {
+    create: jest.fn(),
+    findAndCountAll: jest.fn(),
+    findByPk: jest.fn(),
+    findAll: jest.fn(),
+  },
   QuizQuestion: { findAll: jest.fn() },
   QuizOption: {},
 }));
@@ -23,9 +28,12 @@ const missionService = require('../../src/services/mission.service');
 const quizAttemptService = require('../../src/services/quizAttempt.service');
 
 describe('quizAttempt.service', () => {
-  beforeEach(() => {
+    beforeEach(() => {
     jest.clearAllMocks();
     childService.getById.mockResolvedValue({ child_profile_id: 1 });
+    // 기본값: 최근 10초 내 중복 제출 없음. 중복 방지 로직 자체를 테스트하는
+    // 케이스에서만 개별적으로 다시 mockResolvedValue([...])로 덮어쓴다.
+    QuizAttempt.findAll.mockResolvedValue([]);
   });
 
   describe('submitAttempt', () => {

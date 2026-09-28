@@ -65,6 +65,8 @@ async function processOneJob() {
       childAge: input.childAge,
       character,
       setting: { background: input.background, mainEvent: input.mainEvent },
+      imageStyle: input.imageStyle,
+      keyword: input.keyword,
     });
     await saveStoryWithTransaction({
       ...input,

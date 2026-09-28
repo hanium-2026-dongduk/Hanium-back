@@ -64,4 +64,32 @@ router.post('/heartbeat', usageController.heartbeatValidation, usageController.h
  */
 router.get('/:childId/today', usageController.todayParamValidation, usageController.getToday);
 
+/**
+ * @openapi
+ * /usage/{childId}/summary:
+ *   get:
+ *     tags: [사용 시간]
+ *     summary: 기간별 사용 시간 요약
+ *     description: |
+ *       `from`/`to`(YYYY-MM-DD)를 안 주면 최근 7일(오늘 포함, Asia/Seoul 기준)을 반환한다.
+ *     parameters:
+ *       - $ref: '#/components/parameters/childId'
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, example: '2026-09-01' }
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, example: '2026-09-28' }
+ *     responses:
+ *       200:
+ *         description: 기간별 누적 사용 시간
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Success' }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.get('/:childId/summary', usageController.summaryValidation, usageController.getSummary);
+
 module.exports = router;

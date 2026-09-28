@@ -92,6 +92,30 @@ router.get('/attempts/:attemptId/detail', authenticate, c.attemptDetailValidatio
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
+
+/**
+ * @openapi
+ * /quizzes/by-story/{storyId}:
+ *   get:
+ *     tags: [퀴즈]
+ *     summary: storyId 기준 퀴즈 조회
+ *     description: quizSetId를 몰라도 storyId + child_profile_id로 그 동화의 퀴즈를 조회한다.
+ *     parameters:
+ *       - in: path
+ *         name: storyId
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *       - in: query
+ *         name: child_profile_id
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *     responses:
+ *       200: { description: 퀴즈 문제와 보기 }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.get('/by-story/:storyId', authenticate, c.byStoryValidation, c.byStory);
 router.get('/:quizSetId', authenticate, c.detailValidation, c.detail);
 
 module.exports = router;

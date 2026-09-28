@@ -265,6 +265,49 @@ const passwordReset = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/auth/me
+ * 내 정보 조회
+ */
+const me = async (req, res, next) => {
+  try {
+    const result = await authService.getMe(req.user.user_id);
+    return response.success(res, 200, '내 정보를 조회했습니다.', { user: result });
+  } catch (err) {
+    if (err.statusCode) return response.error(res, err.statusCode, err.message);
+    next(err);
+  }
+};
+
+/**
+ * 비밀번호 변경 유효성 검사
+ */
+const changePasswordValidation = [
+  body('currentPassword').notEmpty().withMessage('현재 비밀번호를 입력해주세요.'),
+  ...passwordValidation('newPassword'),
+];
+
+/**
+ * PUT /api/auth/password/change
+ * 비밀번호 변경 (로그인 상태, 현재 비밀번호 확인)
+ */
+const changePassword = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const result = await authService.changePassword(req.user.user_id, currentPassword, newPassword);
+
+    return response.success(res, 200, result.message);
+  } catch (err) {
+    if (err.statusCode) return response.error(res, err.statusCode, err.message);
+    next(err);
+  }
+};
+
 module.exports = {
   signupValidation,
   signup,
@@ -281,4 +324,7 @@ module.exports = {
   passwordResetRequest,
   passwordResetValidation,
   passwordReset,
+  me,                       
+  changePasswordValidation, 
+  changePassword,           
 };

@@ -473,6 +473,57 @@ const passwordReset = async (email, code, newPassword) => {
   return { message: '비밀번호가 재설정되었습니다.' };
 };
 
+/**
+ * 내 정보 조회
+ * @param {number} userId
+ */
+const getMe = async (userId) => {
+  const user = await User.findByPk(userId);
+  if (!user) {
+    const error = new Error('사용자를 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+  const { password_hash: _, ...userData } = user.toJSON();
+  return userData;
+};
+
+/**
+ * 비밀번호 변경 (로그인된 사용자, 현재 비밀번호 확인 후 변경)
+ * password/reset과 달리 이메일 인증코드가 필요 없다 — 이미 로그인된 세션이라
+ * 현재 비밀번호로 본인 확인을 대신한다.
+ * 성공 시 다른 기기의 세션도 무효화되도록 해당 유저의 모든 refresh token을 폐기한다.
+ *
+ * @param {number} userId
+ * @param {string} currentPassword
+ * @param {string} newPassword
+ */
+const changePassword = async (userId, currentPassword, newPassword) => {
+  const user = await User.findByPk(userId);
+  if (!user) {
+    const error = new Error('사용자를 찾을 수 없습니다.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!isMatch) {
+    const error = new Error('현재 비밀번호가 일치하지 않습니다.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const password_hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+  await sequelize.transaction(async (t) => {
+    user.password_hash = password_hash;
+    await user.save({ transaction: t });
+    await RefreshToken.destroy({ where: { user_id: user.user_id }, transaction: t });
+  });
+
+  return { message: '비밀번호가 변경되었습니다. 다시 로그인해주세요.' };
+};
+
 module.exports = {
   signup,
   sendVerification,
@@ -482,4 +533,6 @@ module.exports = {
   refresh,
   passwordResetRequest,
   passwordReset,
+  getMe,
+  changePassword,
 };

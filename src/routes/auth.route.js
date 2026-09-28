@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { authenticate } = require('../middlewares/auth');
 const authController = require('../controllers/auth.controller');
 const { loginLimiter, emailLimiter, verifyLimiter } = require('../middlewares/rateLimit');
 
@@ -335,6 +336,73 @@ router.put(
   verifyLimiter,
   authController.passwordResetValidation,
   authController.passwordReset
+);
+
+/**
+ * @openapi
+ * /auth/me:
+ *   get:
+ *     tags: [인증]
+ *     summary: 내 정보 조회
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Success'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user: { $ref: '#/components/schemas/User' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+router.get('/me', authenticate, authController.me);
+
+/**
+ * @openapi
+ * /auth/password/change:
+ *   put:
+ *     tags: [인증]
+ *     summary: 비밀번호 변경 (로그인 상태)
+ *     description: |
+ *       이메일 인증번호 없이, 현재 비밀번호 확인만으로 변경한다(`password/reset`과 다른 흐름).
+ *       성공 시 모든 refreshToken이 폐기되어 다른 기기도 다시 로그인해야 한다.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, description: 8자 이상, 영문·숫자·특수문자 각 1자 이상 }
+ *     responses:
+ *       200:
+ *         description: 변경됨
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Success' }
+ *       400: { $ref: '#/components/responses/BadRequest' }
+ *       401:
+ *         description: 인증 실패 또는 현재 비밀번호 불일치
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.put(
+  '/password/change',
+  authenticate,
+  authController.changePasswordValidation,
+  authController.changePassword
 );
 
 module.exports = router;
