@@ -21,11 +21,22 @@ async function listStories(childProfileId, { sort = 'latest', favoriteOnly = fal
   const favoriteJoin = 'LEFT JOIN story_favorites sf ON sf.story_id = st.story_id AND sf.child_profile_id = ?';
   const favoriteWhere = favoriteOnly ? 'AND sf.story_favorite_id IS NOT NULL' : '';
 
+    // 표지 이미지 = 상세 조회(getStoryDetail)와 동일하게 "첫 페이지의 삽화".
+  // MIN(page_number) 서브쿼리로 첫 페이지를 찾고, 그 페이지의 삽화(story_page_illustrations)를
+  // LEFT JOIN한다 — 삽화가 아직 없으면(생성 중이거나 실패) cover_image_url은 NULL로 남는다.
+  const coverImageJoin = `
+     LEFT JOIN story_pages sp1
+       ON sp1.story_id = st.story_id
+      AND sp1.page_number = (SELECT MIN(page_number) FROM story_pages WHERE story_id = st.story_id)
+     LEFT JOIN story_page_illustrations spi ON spi.story_page_id = sp1.story_page_id`;
+
   const [rows] = await pool.execute(
     `SELECT st.story_id, st.title, st.created_at,
-            (sf.story_favorite_id IS NOT NULL) AS is_favorite
+            (sf.story_favorite_id IS NOT NULL) AS is_favorite,
+            spi.image_url AS cover_image_url
      FROM stories st
      ${favoriteJoin}
+     ${coverImageJoin}
      WHERE st.child_profile_id = ?
      ${favoriteWhere}
      ORDER BY ${orderBy}
@@ -47,6 +58,7 @@ async function listStories(childProfileId, { sort = 'latest', favoriteOnly = fal
       storyId: r.story_id,
       title: r.title,
       isFavorite: !!r.is_favorite,
+      coverImageUrl: r.cover_image_url || null,
       createdAt: r.created_at,
     })),
     pagination: {

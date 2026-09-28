@@ -165,7 +165,7 @@ router.post('/', authenticate, async (req, res, next) => {
  *         name: favorite
  *         schema: { type: boolean }
  *     responses:
- *       200: { description: 동화 목록과 pagination을 data에 반환 }
+ *       200: { description: '동화 목록(storyId·title·isFavorite·coverImageUrl·createdAt)과 pagination을 data에 반환. coverImageUrl은 첫 페이지 삽화가 없으면 null' }
  *       400: { $ref: '#/components/responses/BadRequest' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       404: { $ref: '#/components/responses/NotFound' }
