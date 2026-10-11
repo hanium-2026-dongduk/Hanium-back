@@ -46,8 +46,14 @@ app.use(cookieParser());
 // 정적 파일은 notFound보다 반드시 앞에 위치해야 한다 —
 // 그렇지 않으면 /audio, /images 요청이 notFound에 먼저 잡혀 항상 404가 된다.
 // 생성기는 저장소 루트의 public/에 파일을 쓴다. 같은 디렉터리를 서빙한다.
-app.use('/audio', express.static(path.join(__dirname, '../public/audio')));
-app.use('/images', express.static(path.join(__dirname, '../public/images')));
+// 프론트(웹)는 API와 다른 출처에서 이미지·음성을 불러온다. helmet의 기본값
+// (Cross-Origin-Resource-Policy: same-origin)이 막지 않도록 정적 미디어에만 완화한다.
+const allowCrossOriginMedia = (req, res, next) => {
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+};
+app.use('/audio', allowCrossOriginMedia, express.static(path.join(__dirname, '../public/audio')));
+app.use('/images', allowCrossOriginMedia, express.static(path.join(__dirname, '../public/images')));
 
 // API 문서. 계약의 원본이라 프론트가 직접 열어보고 "Try it out"으로 호출까지 해볼 수 있다.
 // 운영에서 감출 필요가 생기면 여기에 인증을 걸거나 Nginx에서 막는다.
