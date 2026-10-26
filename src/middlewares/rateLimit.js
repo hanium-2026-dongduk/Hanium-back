@@ -82,4 +82,14 @@ const verifyLimiter = createLimiter({
   message: '요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.',
 });
 
-module.exports = { createLimiter, loginLimiter, emailLimiter, verifyLimiter };
+/**
+ * 단어 뜻 조회 — 캐시에 없는 단어는 호출마다 Gemini 비용이 든다. 아이가 동화를 읽으며
+ * 단어를 연달아 누르는 정상 사용은 막지 않되, 스크립트로 훑는 것은 막는 수준으로 잡는다.
+ */
+const wordLookupLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: '요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.',
+});
+
+module.exports = { createLimiter, loginLimiter, emailLimiter, verifyLimiter, wordLookupLimiter };
