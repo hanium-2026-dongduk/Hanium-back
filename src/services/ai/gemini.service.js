@@ -34,4 +34,22 @@ async function generateStoryText(prompt) {
   }
 }
 
-module.exports = { generateStoryText };
+/**
+ * 범용 텍스트 생성. 재시도·파싱은 호출부가 callWithRetry로 감싸서 처리한다 —
+ * 응답 형식 검증 실패도 재시도 대상에 넣을 수 있게 하기 위함이다.
+ * @param {string} prompt
+ * @param {object} [options]
+ * @param {number} [options.temperature=0.3]
+ * @returns {Promise<string>} 생성된 텍스트
+ */
+async function generateText(prompt, { temperature = 0.3 } = {}) {
+  const response = await ai.models.generateContent({
+    model: 'gemini-3.1-flash-lite',
+    contents: prompt,
+    config: { temperature },
+  });
+
+  return response.text;
+}
+
+module.exports = { generateStoryText, generateText };
