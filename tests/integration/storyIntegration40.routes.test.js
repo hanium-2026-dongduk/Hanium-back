@@ -103,5 +103,5 @@ test('동화·퀴즈 목록 페이지 값은 숫자로, favorite=false는 거짓
 
   const attempts = await auth(request(app).get('/api/quizzes/attempts?child_profile_id=11&page=2&limit=5'));
   expect(attempts.status).toBe(200);
-  expect(quizAttemptService.listAttempts).toHaveBeenCalledWith(7, '11', { page: 2, limit: 5 });
+  expect(quizAttemptService.listAttempts).toHaveBeenCalledWith(7, 11, { page: 2, limit: 5 });
 });
