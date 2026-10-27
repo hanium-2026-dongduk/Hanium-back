@@ -9,6 +9,13 @@ if (isProduction && (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_
   );
 }
 
+// Gemini 키가 없으면 서버는 뜨지만 동화·퀴즈 생성 요청 때마다
+// "Could not load the default credentials" 에러가 나서 원인을 찾기 어렵다(back#47).
+// 운영에서는 기동 시점에 바로 알 수 있도록 막는다.
+if (isProduction && !process.env.GEMINI_API_KEY) {
+  throw new Error('GEMINI_API_KEY must be set via environment variables in production.');
+}
+
 /**
  * CORS 허용 출처.
  *
