@@ -66,8 +66,63 @@ function buildPrompt(storyText) {
 ${storyText}`;
 }
 
+// Gemini 구조화 출력(JSON 모드)용 스키마. 프롬프트만으로 형식을 강제하면 모델이 앞뒤에
+// 설명 문장을 붙이거나 isCorrect를 문자열로 주는 경우가 있어 JSON.parse/검증이 3번 다 실패해 502가 났다.
+const QUIZ_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    questions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          questionText: { type: 'string' },
+          options: {
+            type: 'array',
+            minItems: OPTION_COUNT,
+            maxItems: OPTION_COUNT,
+            items: {
+              type: 'object',
+              properties: { text: { type: 'string' }, isCorrect: { type: 'boolean' } },
+              required: ['text', 'isCorrect'],
+            },
+          },
+        },
+        required: ['questionText', 'options'],
+      },
+    },
+  },
+  required: ['questions'],
+};
+
 function stripCodeFence(text) {
   return text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+}
+
+/** 코드펜스·앞뒤 설명 문장이 섞여 와도 첫 '{'부터 마지막 '}'까지만 잘라 파싱한다. */
+function parseQuizJson(text) {
+  if (!text || typeof text !== 'string') throw new Error('Gemini 응답 텍스트가 비어 있습니다.');
+  const cleaned = stripCodeFence(text);
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end <= start) throw new Error('응답에서 JSON을 찾을 수 없습니다.');
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+/** isCorrect가 "true" 문자열로 오는 경우 등 사소한 형식 차이를 검증 전에 맞춘다. */
+function normalizeQuizData(data) {
+  if (!data || !Array.isArray(data.questions)) return data;
+  return {
+    questions: data.questions.map((q) => ({
+      ...q,
+      options: Array.isArray(q.options)
+        ? q.options.map((o) => ({
+            ...o,
+            isCorrect: o.isCorrect === true || String(o.isCorrect).toLowerCase() === 'true',
+          }))
+        : q.options,
+    })),
+  };
 }
 
 function validateQuizData(data) {
@@ -101,14 +156,19 @@ async function callGeminiWithRetry(prompt, maxRetries = 3) {
       const response = await ai.models.generateContent({
         model: 'gemini-3.1-flash-lite',
         contents: prompt,
-        config: { temperature: 0.3 },
+        config: {
+          temperature: 0.3,
+          responseMimeType: 'application/json',
+          responseJsonSchema: QUIZ_RESPONSE_SCHEMA,
+        },
       });
 
-      const text = stripCodeFence(response.text);
-      const parsed = JSON.parse(text);
+      const parsed = normalizeQuizData(parseQuizJson(response.text));
       return validateQuizData(parsed);
     } catch (err) {
       lastError = err;
+      // 마지막 502만 보면 원인을 알 수 없어 시도별 실패 사유를 남긴다.
+      console.warn(`[quizGeneration] Gemini 시도 ${attempt}/${maxRetries} 실패:`, err.message);
       if (attempt < maxRetries) {
         await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
       }
