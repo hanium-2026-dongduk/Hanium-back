@@ -239,10 +239,13 @@ router.get('/generations/:jobId', authenticate, async (req, res, next) => {
 // 4. 동화 상세 조회 API (GET /api/stories/:id)
 router.get('/:id', authenticate, async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const childProfileId = req.query.child_profile_id;
+    const id = Number(req.params.id);
+    const childProfileId = Number(req.query.child_profile_id);
 
-    if (!childProfileId) {
+    if (!Number.isSafeInteger(id) || id < 1) {
+      return response.error(res, 400, '동화 ID가 올바르지 않습니다.');
+    }
+    if (!Number.isSafeInteger(childProfileId) || childProfileId < 1) {
       return response.error(res, 400, 'child_profile_id 쿼리 파라미터가 필요합니다.');
     }
     await childService.getById(req.user.user_id, childProfileId);

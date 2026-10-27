@@ -87,13 +87,13 @@ test('다른 자녀의 캐릭터는 동화 생성에 사용할 수 없다', asyn
 test('동화·퀴즈 목록 페이지 값은 숫자로, favorite=false는 거짓으로 전달한다', async () => {
   const stories = await auth(request(app).get('/api/stories?child_profile_id=11&page=2&limit=5&favorite=false'));
   expect(stories.status).toBe(200);
-  expect(storyLibraryService.listStories).toHaveBeenCalledWith('11', {
+  expect(storyLibraryService.listStories).toHaveBeenCalledWith(11, {
     sort: undefined, favoriteOnly: false, page: 2, limit: 5,
   });
 
   const favorites = await auth(request(app).get('/api/stories?child_profile_id=11&favorite=true'));
   expect(favorites.status).toBe(200);
-  expect(storyLibraryService.listStories).toHaveBeenLastCalledWith('11', {
+  expect(storyLibraryService.listStories).toHaveBeenLastCalledWith(11, {
     sort: undefined, favoriteOnly: true, page: undefined, limit: undefined,
   });
 
