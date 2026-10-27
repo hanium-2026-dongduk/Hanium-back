@@ -32,10 +32,12 @@ const list = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
 
-    const { child_profile_id, sort, favorite, page, limit } = req.query;
-    await childService.getById(req.user.user_id, child_profile_id);
+    const { sort, favorite, page, limit } = req.query;
+    // Express 5에서는 req.query에 toInt() 결과가 남지 않아 직접 숫자로 바꾼다.
+    const childProfileId = Number(req.query.child_profile_id);
+    await childService.getById(req.user.user_id, childProfileId);
 
-    const result = await storyLibraryService.listStories(child_profile_id, {
+    const result = await storyLibraryService.listStories(childProfileId, {
       sort,
       favoriteOnly: favorite === 'true',
       page: page === undefined ? undefined : Number(page),
@@ -54,10 +56,10 @@ const remove = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
 
-    const { child_profile_id } = req.query;
-    await childService.getById(req.user.user_id, child_profile_id);
+    const childProfileId = Number(req.query.child_profile_id);
+    await childService.getById(req.user.user_id, childProfileId);
 
-    const result = await storyLibraryService.deleteStory(child_profile_id, req.params.storyId);
+    const result = await storyLibraryService.deleteStory(childProfileId, req.params.storyId);
     return response.success(res, 200, '동화가 삭제되었습니다.', result);
   } catch (err) {
     if (err.statusCode) return response.error(res, err.statusCode, err.message);
