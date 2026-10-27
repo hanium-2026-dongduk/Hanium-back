@@ -99,7 +99,7 @@ const listAttempts = async (req, res, next) => {
     if (!errors.isEmpty()) return response.error(res, 400, '입력값을 확인해주세요.', errors.array());
 
     const { child_profile_id, page, limit } = req.query;
-    const result = await quizAttemptService.listAttempts(req.user.user_id, child_profile_id, {
+    const result = await quizAttemptService.listAttempts(req.user.user_id, Number(child_profile_id), {
       page: page === undefined ? undefined : Number(page),
       limit: limit === undefined ? undefined : Number(limit),
     });
